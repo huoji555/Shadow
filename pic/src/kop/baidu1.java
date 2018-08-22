@@ -20,7 +20,7 @@ public class baidu1 {
 	
 	public static void main(String[] args) {
 		
-		     String otherHost = "https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic";
+		     String otherHost = "https://aip.baidubce.com/rest/2.0/solution/v1/form_ocr/request";
 		    //String otherHost = "https://aip.baidubce.com/rest/2.0/solution/v1/form_ocr/get_request_result";
 	        // 本地图片路径
 	        String filePath = "D:/008.jpg";

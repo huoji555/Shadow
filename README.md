@@ -1,5 +1,10 @@
-# ImageProcessing
-图片文字识别系统
+## 项目介绍
 
-#### 根据百度OCR，自动识别表格文件并下载到指定路径
-#### 根据百度OCR, 高精度识别文本
+##### 这里会提交一些有趣的小项目，欢迎交流
+
+## 项目实例
+
+- [Java实现百度OCR表格文字识别](https://github.com/huoji555/Shadow/tree/master/pic)
+- [Java爬虫实例(爬取Mooc论坛为实例)](https://github.com/huoji555/Shadow/tree/master/JavaSpider)
+- [Java模拟请求远程接口并同步数据到第三方(已做加密处理)](https://github.com/huoji555/Shadow/tree/master/JavaSpider)
+

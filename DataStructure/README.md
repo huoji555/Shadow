@@ -469,3 +469,34 @@ Add双参方法
 
 <br>
 
+Remove方法
+
+```java
+ @Override
+    public E remove(int index) {
+        E element = get(index);
+        if (index == 0) {
+            head = head.next;
+        } else {
+            Node node = getNode(index-1);
+            node.next = node.next.next;
+        }
+        size--;
+        return element;
+    }
+```
+
+> `remove`使用了`get`查找和存储`index`处的元素。然后它删除包含它的`Node`。
+>
+> 如果`index==0`，我们再次处理这个特殊情况。否则我们找到节点`index-1`(这个真的是心机，得防止它漏过)并进行修改，来跳过`node.next`并直接链接到`node.next.next`。这有效地从列表中删除`node.next`，它可以被垃圾回收。
+>
+> 当人们看到两个线性操作时，他们有时会认为结果是平方的，但是只有一个操作嵌套在另一个操作中才适用。如果你在一个操作之后调用另一个，运行时间会相加。如果它们都是`O(n)`的，则总和也是`O(n)`的。
+>
+> 所以Remove()是线性的
+
+<br>
+
+
+
+4.
+

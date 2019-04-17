@@ -1056,5 +1056,202 @@ public static void iteratorDFS(Node root) {
 
 循环持续到栈为空。每次迭代，它会从栈中弹出`Node`。如果它得到`TextNode`，它打印内容。然后它把子节点们压栈。**为了以正确的顺序处理子节点，我们必须以相反的顺序将它们压栈;** 我们通过将子节点复制成一个`ArrayList`，原地反转元素，然后遍历反转的`ArrayList`。
 
-DFS 的迭代版本的一个优点是，**更容易实现为 Java `Iterator`**；你会在下一章看到如何实现。
+DFS 的迭代版本的一个优点是，**更容易实现为 Java `Iterator`**；你会在下一章看到如何实现。<br>
 
+
+
+### 第八章 到达哲学
+
+> 本章的目标是开发一个Web爬虫，同时验证之前提到的 `到达哲学` 
+
+
+
+###### 1.起步
+
+首先介绍本章中帮你起步的代码：
+
+- `WikiNodeExample.java`包含前一章的代码，展示了 DOM 树中深度优先搜索（DFS）的递归和迭代实现。
+- `WikiNodeIterable.java`包含`Iterable`类，用于遍历 DOM 树。我将在下一节中解释这段代码。
+- `WikiFetcher.java`包含一个工具类，使用`jsoup`从维基百科下载页面。为了帮助你遵守维基百科的服务条款，此类限制了你下载页面的速度；如果你每秒请求许多页，在下载下一页之前会休眠一段时间。
+- `WikiPhilosophy.java`包含你为此练习编写的代码的大纲。我们将在下面进行说明。
+
+<br>
+
+
+
+###### 2.可迭代对象和迭代器
+
+在前一章中，我展示了迭代式深度优先搜索（DFS），并且认为与递归版本相比， **迭代版本的优点**在于， **它更容易包装在`Iterator`对象中（Iterable是一种数据结构，Iterator是用来迭代的迭代器）**。在本节中，我们将看到如何实现它。
+
+**外层的类`WikiNodeIterable`实现`Iterable<Node>`接口，所以我们可以在一个`for`循环中使用它：**
+
+```java
+Node root = ...
+Iterable<Node> iter = new WikiNodeIterable(root);
+for (Node node: iter) {
+    visit(node);
+}
+```
+
+其中 root为树的根节点，visit() 是到Node节点时，你想做的任意的事.
+
+`WikiNodeIterable`的实现遵循以下惯例：
+
+- 构造函数接受并存储根`Node`的引用。
+- `iterator`方法创建一个返回一个`Iterator`对象。
+
+下边是它的样子
+
+```java
+public class WikiNodeIterable implements Iterable<Node> {
+    private  Node root;
+    
+    // 从给定的节点开始创造一个迭代器
+    public WikiNodeIterable(Node root) {
+        this.root = root;
+    }
+
+    @Override
+    public Iterator<Node> iterator() {
+        return new WikiNodeIterator(root);
+    }
+
+}
+```
+
+内部类  `WikiNodeIterator`，**执行所有实际工作**
+
+```java
+//实现Iterator的内部类
+private class WikiNodeIterator implements Iterator<Node> {
+
+    // 这个堆栈跟踪等待访问的节点
+    Deque<Node>  stack;
+
+    // 使用堆栈上的根节点初始化Iterator。
+    public WikiNodeIterator(Node node) {
+        stack = new ArrayDeque<Node>();
+        stack.push(node);
+    }
+
+    @Override
+    public boolean hasNext() {
+        return !stack.isEmpty();
+    }
+
+    @Override
+    public Node next() {
+        if (stack.isEmpty()) {
+            throw new NoSuchElementException();
+        }
+        // 出栈
+        Node node = stack.pop();
+        // 反转后将child节点放入堆栈中
+        List<Node> nodes = new ArrayList<Node>(node.childNodes());
+        Collections.reverse(nodes);
+        for (Node child : nodes) {
+            stack.push(child);
+        }
+        return node;
+    }
+
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
+
+}
+```
+
+该代码与 DFS 的迭代版本几乎相同(**DFS是写在一块的**)，但现在分为三个方法：
+
+- 构造函数初始化栈（使用一个`ArrayDeque`实现）并将根节点压入这个栈。
+- `isEmpty`检查栈是否为空。
+- `next`从`Node`栈中弹出下一个节点，按相反的顺序压入子节点，并返回弹出的`Node`。如果有人在空`Iterator`上调用`next`，则会抛出异常。
+
+可能不明显的是，值得使用两个类和五个方法，来重写一个完美的方法。但是现在我们已经完成了，在需要`Iterable`的任何地方，我们可以使用`WikiNodeIterable`，这使得它的语法整洁，易于将迭代逻辑（DFS）与我们对节点的处理分开。<br>
+
+
+
+###### 3.`WikiFetcher`
+
+编写 Web 爬虫时，很容易下载太多页面，这**可能会违反你要下载的服务器的服务条款**。为了帮助你避免这种情况，我提供了一个`WikiFetcher`类，它可以做两件事情:
+
+- 它封装了我们在上一章中介绍的代码，用于从维基百科下载页面，**解析 HTML 以及选择内容文本**。
+- 它测量请求之间的时间，如果我们在请求之间没有足够的时间，它将休眠直到经过了合理的间隔。默认情况下，间隔为`1`秒（**防止过度请求**）。
+
+这里是`WikiFetcher`的定义：
+
+```java
+public class WikiFetcher {
+
+    private long lastRequestTime = -1;
+    private long minIterval = 1000;
+
+
+    /**
+     * @Author Ragty
+     * @Description  找到并解析数据
+     * @Date 10:15 2019/4/16
+     **/
+    public Elements fetchWikiPedia(String url) throws IOException {
+        sleepIfNeed();
+        Connection connection = Jsoup.connect(url);
+        Document doc = connection.get();
+        Element content = doc.getElementById("mw-content-text");
+        Elements para = content.select("p");
+        return para;
+    }
+
+
+    /**
+     * @Author Ragty
+     * @Description 通过最小访问时间来限制范围访问频率
+     * @Date 10:43 2019/4/16
+     **/
+    private void sleepIfNeed() {
+        if (lastRequestTime != -1) {
+            long currentTime = System.currentTimeMillis();
+            long nextRequestTime = lastRequestTime + minIterval;
+            if (currentTime < lastRequestTime) {
+                try {
+                    Thread.sleep(nextRequestTime - currentTime);
+                } catch (InterruptedException e) {
+                    System.err.println("Warning: sleep interrupted in fetchWikipedia.");
+                }
+            }
+        }
+        lastRequestTime = System.currentTimeMillis();
+    }
+
+}
+```
+
+新的代码是`sleepIfNeeded`，它检查自上次请求以来的时间，如果经过的时间小于`minInterval`（毫秒），则休眠。<br>
+
+
+
+###### 4.练习
+
+在`WikiPhilosophy.java`中，你会发现一个简单的`main`方法，展示了如何使用这些部分。从这个代码开始，你的工作是写一个爬虫：
+
+1. 获取维基百科页面的 URL，下载并分析。
+2. 它应该**遍历所得到的 DOM 树来找到第一个 有效的链接**。我会在下面解释“有效”的含义。
+3. 如果页面没有链接，或者如果第一个链接是我们已经看到的页面，程序应该指示失败并退出。
+4. 如果链接匹配维基百科页面上的哲学网址，程序应该提示成功并退出。
+5. 否则应该回到步骤`1`。
+
+该程序应该为它访问的 URL 构建`List`，**并在结束时显示结果（无论成功还是失败）**。
+
+`那么我们应该认为什么是“有效的”链接？`
+
+- 这个链接**应该在页面的内容文本中**，而不是侧栏或弹出框。
+- 它**不应该是斜体或括号**。
+- 你应该**跳过外部链接**，当前页面的链接和红色链接。
+- 在某些版本中，如果文本以大写字母开头，则应跳过链接。
+
+如果你有足够的信息来起步，请继续。或者你可能想要阅读这些提示：
+
+- 当你遍历树的时候，你将需要处理的两种`Node`是`TextNode`和`Element`。如果你找到一个`Element`，你可能需要转换它的类型，来访问标签和其他信息。
+- 当你**找到包含链接的`Element`时**，**通过向上跟踪父节点链，可以检查是否是斜体**。如果父节点链中有一个`<i>`或`<em>`标签，链接为斜体。
+- 为了检查链接是否在括号中，你必须在遍历树时扫描文本，并跟踪开启和闭合括号（理想情况下，你的解决方案应该能够处理嵌套括号（像这样））。

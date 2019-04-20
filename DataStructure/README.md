@@ -1238,7 +1238,7 @@ public class WikiFetcher {
 1. 获取维基百科页面的 URL，下载并分析。
 2. 它应该**遍历所得到的 DOM 树来找到第一个 有效的链接**。我会在下面解释“有效”的含义。
 3. 如果页面没有链接，或者如果第一个链接是我们已经看到的页面，程序应该指示失败并退出。
-4. 如果链接匹配维基百科页面上的哲学网址，程序应该提示成功并退出。
+4. 如果链接**匹配维基百科页面上的哲学网址**，程序应该提示成功并退出。
 5. 否则应该回到步骤`1`。
 
 该程序应该为它访问的 URL 构建`List`，**并在结束时显示结果（无论成功还是失败）**。
@@ -1254,4 +1254,239 @@ public class WikiFetcher {
 
 - 当你遍历树的时候，你将需要处理的两种`Node`是`TextNode`和`Element`。如果你找到一个`Element`，你可能需要转换它的类型，来访问标签和其他信息。
 - 当你**找到包含链接的`Element`时**，**通过向上跟踪父节点链，可以检查是否是斜体**。如果父节点链中有一个`<i>`或`<em>`标签，链接为斜体。
-- 为了检查链接是否在括号中，你必须在遍历树时扫描文本，并跟踪开启和闭合括号（理想情况下，你的解决方案应该能够处理嵌套括号（像这样））。
+- 为了检查链接是否在括号中，你必须在遍历树时扫描文本，并跟踪开启和闭合括号（理想情况下，你的解决方案应该能够处理嵌套括号（像这样））。<br>
+
+
+
+
+
+### 第九章 索引器
+
+> 目前，我们构建了一个基本的 Web 爬虫；我们下一步将是索引。在网页搜索的上下文中，**索引是一种数据结构，可以查找检索词并找到该词出现的页面**。此外，我们想知道每个页面上显示检索词的次数，这将有助于确定与该词最相关的页面。
+>
+> 例如，如果用户提交检索词“Java”和“编程”，我们将查找两个检索词并获得两组页面。带有“Java”的页面将包括 Java 岛屿，咖啡昵称以及编程语言的网页。具有“编程”一词的页面将包括不同编程语言的页面，以及该单词的其他用途。通过选择具有两个检索词的页面，我们希望消除不相关的页面，并找到 Java 编程的页面。现在我们了解索引是什么，它执行什么操作，我们可以设计一个数据结构来表示它。
+
+
+
+###### 1.数据结构选取
+
+索引的基本操作是查找；具体来说，我们需要能够查找检索词并找到包含它的所有页面。最简单的实现将是页面的集合。给定一个检索词，我们可以遍历页面的内容，并选择包含检索词的内容。但运行时间与所有页面上的总字数成正比，这太慢了(最简单的思路就这样)。
+
+一个更好的选择是一个映射（`字典`），它是一个数据结构，表示键值对的集合，并提供了一种方法，快速查找键以及相应值。例如，我们将要构建的第一个映射是`TermCounter`，**它将每个检索词映射为页面中出现的次数。键是检索词，值是计数（也称为“频率”）**。
+
+Java 提供了`Map`的调用接口，它指定映射应该提供的方法；最重要的是：
+
+- `get(key)`：此方法查找一个键并返回相应的值。
+- `put(key, value)`：该方法向`Map`添加一个新的键值对，或者如果该键已经在映射中，它将替换与`key`关联的值。
+
+除了检索词到计数的映射`TermCounter`之外，我们将定义一个被称为`Index`的类，**它将检索词映射为出现的页面的集合**。而这又引发了下一个问题，即如何表示页面集合。同样，如果我们考虑我们想要执行的操作，它们就指导了我们的决定。
+
+**在这种情况下，我们需要组合两个或多个集合，并找到所有这些集合中显示的页面**（敲黑板，也就是需要找到包含并集的页面）。你可以将此操作看做集合的交集：两个集合的交集是出现在两者中的一组元素。
+
+你可能猜到了，Java 提供了一个`Set`接口，来定义集合应该执行的操作。它实际上并不提供设置交集，但它提供了方法，使我们能够有效地实现交集和其他结合操作。核心的`Set`方法是：
+
+- `add(element)`：该方法将一个元素添加到集合中；如果元素已经在集合中，则它不起作用。
+- `contains(element)`：该方法检查给定元素是否在集合中。
+
+现在我们自顶向下设计了我们的数据结构，我们将从内到外实现它们，从`TermCounter`开始。<br><br>
+
+
+
+###### 2.`TermCounter`
+
+`TermCounter`是一个类，表示检索词到页面中出现次数的映射。这是类定义的第一部分：
+
+```java
+public class TermCounter {
+    private Map<String, Integer> map;
+    private String label;
+
+    public TermCounter(String label) {
+        this.label = label;
+        this.map = new HashMap<String, Integer>();
+    }
+}
+```
+
+实例变量`map`包含检索词到计数的映射（这里使用HashMap），并且`label`标识检索词的来源文档；
+
+```java
+ public void put(String term, int count) {
+     map.put(term, count);
+ }
+
+ public Integer get(String term) {
+     Integer count = map.get(term);
+     return count == null ? 0 : count;   //没有就返回0
+ }
+ 
+ public void incrementTermCount(String term) {
+     put(term, get(term) + 1);
+ }
+    
+```
+
+帮助索引网页的方法：
+
+```java
+ public void processElements(Elements paragraphs) {
+        for (Node node: paragraphs) {
+            processTree(node);
+        }
+    }
+
+    public void processTree(Node root) {
+        for (Node node: new WikiNodeIterable(root)) {
+            if (node instanceof TextNode) {
+                processText(((TextNode) node).text());
+            }
+        }
+    }
+
+    public void processText(String text) {
+        // 用空格替换标点符号，转换为小写，并以空格为分隔符
+        String[] array = text.replaceAll("\\pP|\\pS"," ")
+                            .toLowerCase()
+                            .split("\\s+");
+        for (String term : array) {
+            if (!term.equals("")) {
+                incrementTermCount(term);
+            }
+        }
+    }
+```
+
+**特别强调，这里还要去除"",否则结果会显示计数**
+
+`测试用例`
+
+```java
+String url = "https://en.wikipedia.org/wiki/Java_(programming_language)";
+WikiFetcher wf = new WikiFetcher();
+Elements para = wf.fetchWikiPedia(url);
+
+TermCounter tc = new TermCounter(url);
+tc.processElements(para);
+tc.printCounts();
+```
+
+`部分测试结果(截取底部数据)`
+
+```java
+command,2
+performance,4
+boolean,1
+currently,1
+compliance,1
+response,1
+variable,2
+arguments,3
+Total of counts:4020
+```
+
+<br>
+
+
+
+###### 3.Index类的实现
+
+这个类的主要目的是实现：**实例变量`index`是每个检索词到一组`TermCounter`对象的映射。每个`TermCounter`表示检索词出现的页面。**
+
+这是它的基础结构：
+
+```java
+public class Index {
+
+    private Map<String, Set<TermCounter>> index = 
+        new HashMap<String, Set<TermCounter>>();
+
+    public void add(String term, TermCounter tc) {
+        Set<TermCounter> set = get(term);
+
+        // if we're seeing a term for the first time, make a new Set
+        if (set == null) {
+            set = new HashSet<TermCounter>();
+            index.put(term, set);
+        }
+        // otherwise we can modify an existing Set
+        set.add(tc);
+    }
+
+    public Set<TermCounter> get(String term) {
+        return index.get(term);
+    }
+ }   
+```
+
+`add`方法向集合添加新的`TermCounter`，它与检索词关联。当我们索引一个尚未出现的检索词时，我们必须创建一个新的集合。否则我们可以添加一个新的元素到一个现有的集合。在这种情况下，`set.add`修改位于`index`里面的集合，但不会修改`index`本身。  **我们唯一修改`index`的时候是添加一个新的检索词**
+
+这种数据结构比较复杂。回顾一下，`Index`包含`Map`，将每个检索词映射到`TermCounter`对象的`Set`，每个`TermCounter`包含一个`Map`，**将检索词映射到计数**（这是值得一提的部分）。
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/8-1.jpg)
+
+`printIndex`方法展示了如何解压缩此数据结构：
+
+```java
+public void printIndex() {
+        for (String term: index.keySet()) {
+            System.out.println(term);
+
+            Set<TermCounter> tcs = get(term);
+            for (TermCounter tc: tcs) {
+                Integer count = tc.get(term);
+                System.out.println(tc.getLabel()+ "   "+count);
+            }
+        }
+    }
+```
+
+**外层循环遍历检索词。内层循环迭代`TermCounter`对象。**
+
+`indexPage`统计页面中的检索词:
+
+```java
+ public void indexPage(String url, Elements paragraphs) {
+
+        //  生成一个 TermCounter 并统计段落中的检索词
+        TermCounter tc = new TermCounter(url);
+        tc.processElements(paragraphs);
+
+        // 对于 TermCounter 中的每个检索词，将 TermCounter 添加到索引
+        for (String term: tc.keySet()) {
+            add(term,tc);
+        }
+
+    }
+```
+
+`测试`
+
+```java
+WikiFetcher wikiFetcher = new WikiFetcher();
+Index indexer = new Index();
+
+String url = "https://en.wikipedia.org/wiki/Java_(programming_language)";
+Elements paragraphs = wikiFetcher.fetchWikiPedia(url);
+indexer.indexPage(url,paragraphs);
+
+String url1 = "https://en.wikipedia.org/wiki/Programming_language";
+Elements paragraphs1 = wikiFetcher.fetchWikiPedia(url);
+indexer.indexPage(url1,paragraphs1);
+
+indexer.printIndex();
+```
+
+`部分测试结果`
+
+```java
+response
+https://en.wikipedia.org/wiki/Java_(programming_language)   1
+https://en.wikipedia.org/wiki/Programming_language   1
+variable
+https://en.wikipedia.org/wiki/Java_(programming_language)   2
+https://en.wikipedia.org/wiki/Programming_language   2
+arguments
+https://en.wikipedia.org/wiki/Java_(programming_language)   3
+https://en.wikipedia.org/wiki/Programming_language   3
+```
+

@@ -1490,3 +1490,127 @@ https://en.wikipedia.org/wiki/Java_(programming_language)   3
 https://en.wikipedia.org/wiki/Programming_language   3
 ```
 
+
+
+
+
+### 第十章 Map接口
+
+> 在接下来的几个练习中，我介绍了`Map`接口的几个实现。其中一个基于哈希表，这可以说是所发明的最神奇的数据结构。另一个是类似的`TreeMap`，不是很神奇，但它有附加功能，它可以按顺序迭代元素。
+>
+> 我们从一个`Map`开始，它使用键值对的`List`实现。
+
+
+
+###### 1.实现MyLinearMap
+
+简单来说，就是继承Map,放入List中,来看下初始结构
+
+```java
+public class MyLinearMap<K, V> implements Map<K, V> {
+
+    private List<Entry> entries = new ArrayList<Entry>();
+```
+
+`MyLinearMap`对象具有单个实例变量，`entries`，这是一个`Entry`的`ArrayList`对象。每个`Entry`都包含一个键值对。这里是定义：
+
+```java
+public class Entry implements Map.Entry<K,V> {
+        private K key;
+        private V value;
+
+        public Entry(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        @Override
+        public K getKey() {
+            return key;
+        }
+
+        @Override
+        public V getValue() {
+            return value;
+        }
+
+        @Override
+        public V setValue(V newValue) {
+            this.value = newValue;
+            return value;
+        }
+    }
+```
+
+<br>
+
+
+
+###### 2.分析MyLinearMap
+
+两个私有方法`FindEntry`用于根据key值，找到对应的实体，`equal`用于比较，下边是实现：
+
+```java
+private Entry findEntry(Object target) {
+    for (Entry entry: entries) {
+        if (equals(target, entry.getKey())) {
+            return entry;
+        }
+    }
+    return null;
+}
+
+private boolean equals(Object target, Object obj) {
+    if (target == null) {
+        return obj == null;
+    }
+    return target.equals(obj);
+}
+```
+
+`equals`运行时间取决于值的大小，跟数目无关，**是常数时间O(1)**.
+
+`findEntry`运行时间取决于数目，最好的情况下，可以一开始就找到，但是平均下来的话，仍要遍历整个map,是线性时间，**时间复杂度为O(n)**.
+
+大部分的`MyLinearMap`核心方法使用`findEntry`，包括`put`，`get`，和`remove`。这就是他们的样子：
+
+```java
+public V put(K key, V value) {
+    Entry entry = findEntry(key);
+    if (entry == null) {
+        entries.add(new Entry(key, value));
+        return null;
+    } else {
+        V oldValue = entry.getValue();
+        entry.setValue(value);
+        return oldValue;
+    }
+}
+
+public V get(Object key) {
+    Entry entry = findEntry(key);
+    if (entry == null) {
+        return null;
+    }
+    return entry.getValue();
+}
+
+public V remove(Object key) {
+    Entry entry = findEntry(key);
+    if (entry == null) {
+        return null;
+    } else {
+        V value = entry.getValue();
+        entries.remove(entry);
+        return value;
+    }
+}
+```
+
+这三个方法中，调用`findEntry`是线性时间，其余操作都为常数时间，**所以总的时间复杂度为线性时间**。
+
+总而言之，核心方法都是线性的，这就是为什么我们将这个实现称为`MyLinearMap`
+
+**如果我们知道输入的数量很少，这个实现可能会很好（很好的原因就是，数目少了有更大机率查找为常数时间）**，但是我们可以做得更好。**实际上，`Map`所有的核心方法都是常数时间的实现**。当你第一次听到这个消息时，可能似乎觉得不可能。实际上我们所说的是，你可以在常数时间内大海捞针，不管海有多大。这是魔法。
+
+我们不是将条目存储在一个大的`List`中，**而是把它们分解成许多短的列表（这样查找时就为常数时间）**。对于每个键，我们将使用哈希码（在下一节中进行说明）来确定要使用的列表。 使用大量的简短列表比仅仅使用一个更快，但正如我将解释的，它不会改变增长级别；核心功能仍然是线性的。但还有一个技巧：**如果我们增加列表的数量来限制每个列表的条目数，就会得到一个恒定时间的映射**。你会在下一个练习中看到细节，但是首先要了解哈希！

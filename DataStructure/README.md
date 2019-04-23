@@ -1614,3 +1614,208 @@ public V remove(Object key) {
 **如果我们知道输入的数量很少，这个实现可能会很好（很好的原因就是，数目少了有更大机率查找为常数时间）**，但是我们可以做得更好。**实际上，`Map`所有的核心方法都是常数时间的实现**。当你第一次听到这个消息时，可能似乎觉得不可能。实际上我们所说的是，你可以在常数时间内大海捞针，不管海有多大。这是魔法。
 
 我们不是将条目存储在一个大的`List`中，**而是把它们分解成许多短的列表（这样查找时就为常数时间）**。对于每个键，我们将使用哈希码（在下一节中进行说明）来确定要使用的列表。 使用大量的简短列表比仅仅使用一个更快，但正如我将解释的，它不会改变增长级别；核心功能仍然是线性的。但还有一个技巧：**如果我们增加列表的数量来限制每个列表的条目数，就会得到一个恒定时间的映射**。你会在下一个练习中看到细节，但是首先要了解哈希！
+
+<br><br>
+
+
+
+### 第十一章 哈希
+
+> 在本章中，我定义了一个比`MyLinearMap`更好的`Map`接口实现，`MyBetterMap`，并引入哈希，这使得`MyBetterMap`效率更高。
+
+
+
+###### 1.哈希
+
+为了提高`MyLinearMap`的性能，我们将编写一个新的类，它被称为`MyBetterMap`，它包含`MyLinearMap`对象的集合。**它在内嵌的映射之间划分键，因此每个映射中的条目数量更小**，这加快了`findEntry`，以及依赖于它的方法的速度。
+
+类定义的开始：
+
+```java
+public class MyBetterMap<K, V> implements Map<K, V> {
+
+    protected List<MyLinearMap<K, V>> maps;
+
+    public MyBetterMap(int k) {
+        makeMaps(k);
+    }
+
+    // k值关系到hashCode的分配
+    protected void makeMaps(int k) {
+        maps = new ArrayList<MyLinearMap<K, V>>(k);
+        for (int i=0; i<k; i++) {
+            maps.add(new MyLinearMap<K, V>());
+        }
+    }
+}
+```
+
+实例变量`maps`是一组`MyLinearMap`对象。构造函数接受一个参数`k`，**决定至少最开始，要使用多少个映射**。然后`makeMaps`创建内嵌的映射并将其存储在一个`ArrayList`中。
+
+现在，完成这项工作的关键是，**我们需要一些方法来查看一个键，并决定应该进入哪个映射(首先要放进去，放到哪里用HashCode算法决定)**。当我们`put`一个新的键时，我们选择一个映射；当我们`get`同样的键时，我们必须记住我们把它放在哪里(**重点是要确定如何跟踪**)。
+
+一种可能性是**随机选择一个子映射**，并跟踪我们把每个键放在哪里(**无法跟踪**)。
+
+一个更好的方法是**使用一个哈希函数**，它接受一个`Object`，一个任意的`Object`，并返回一个称为哈希码的整数。重要的是，**如果它不止一次看到相同的`Object`，它总是返回相同的哈希码**。这样，如果我们使用哈希码来存储键，当我们查找时，我们将得到相同的哈希码。
+
+在Java中，每个`Object`都提供了`hashCode`，一种计算哈希函数的方法。**这种方法的实现对于不同的对象是不同的**；我们会很快看到一个例子。
+
+选择到正确的子映射：
+
+```java
+/**
+* @Author Ragty
+* @Description 为一个给定的键选择正确的子映射（同makeMaps的初始化数量有关）
+* @Date 10:53 2019/4/23
+**/
+protected MyLinearMap<K, V> chooseMap(Object key) {
+    int index = 0;
+    if (key != null) { 
+        index = Math.abs(key.hashCode()) % maps.size();
+    }
+    return maps.get(index);
+}
+```
+
+如果`key`是`null`，我们选择索引为`0`的子映射。否则，我们使用`hashCode`获取一个整数，调用`Math.abs`来确保它是非负数，然后使用余数运算符`%`，**这保证结果在`0`和`maps.size()-1`之间**。**所以`index`总是一个有效的`maps`索引**。然后`chooseMap`返回为其所选的映射的引用。
+
+我们使用`chooseMap`的`put`和`get`，所以**当我们查询键的时候，我们得到添加时所选的相同映射，我们选择了相同的映射**。至少应该是 - 稍后我会解释为什么这**可能不起作用**。
+
+`put`和`get`实现：
+
+```java
+public V put(K key, V value) {
+  MyLinearMap<K, V> map = chooseMap(key);
+    return map.put(key, value);
+}
+
+public V get(Object key) {
+    MyLinearMap<K, V> map = chooseMap(key);
+    return map.get(key);
+}
+```
+
+我们使用`chooseMap`来找到正确的子映射，然后在子映射上调用一个方法，我们考虑一下性能.
+
+**如果在`k`个子映射中分配了`n`个条目，则平均每个映射将有`n/k`个条目。当我们查找一个键时，我们必须计算其哈希码，这需要一些时间，然后我们搜索相应的子映射。**
+
+因为`MyBetterMap`中的条目列表，比`MyLinearMap`中的短`k`倍，我们的预期是`ķ`倍的搜索速度。**但运行时间仍然与`n`成正比(n/k)，所以`MyBetterMap`仍然是线性的**。在下一个练习中，你将看到如何解决这个问题。
+
+关于此问题的思考，现在考虑一种比较极端的情况，如果恰好所有数据都集中在一个子映射中，那么效率将跟线性方法一样.<br>
+
+
+
+###### 2.哈希如何工作
+
+哈希函数的基本要求是，**每次相同的对象应该产生相同的哈希码**。对于不变的对象，这是比较容易的。对于具有可变状态的对象，我们必须花费更多精力。
+
+作为一个不可变对象的例子，我将定义一个`SillyString`类，它包含一个`String`：
+
+```java
+public class SillyString {
+    private final String innerString;
+
+    public SillyString(String innerString) {
+        this.innerString = innerString;
+    }
+
+    public String toString() {
+        return innerString;
+    }
+```
+
+使用它来展示，一个类如何定义它自己的哈希函数：
+
+```java
+    @Override
+    public boolean equals(Object other) {
+        return this.toString().equals(other.toString());
+    }
+
+    @Override
+    public int hashCode() {
+        int total = 0;
+        for (int i=0; i<innerString.length(); i++) {
+            total += innerString.charAt(i);
+        }
+        return total;
+    }
+```
+
+注意`SillyString`重写了`equals`和`hashCode`。这个很重要。为了正常工作，`equals`必须和`hashCode`一致，这意味着如果两个对象被认为是相等的 - 也就是说，`equals`返回`true` - 它们应该有相同的哈希码。**但这个要求只是单向的；如果两个对象具有相同的哈希码，则它们不一定必须相等。**（不可逆）
+
+`hashCode`的原理是，**迭代`String`中的字符并将它们相加**。当你向`int`添加一个字符时，Java 将使用其 Unicode 代码点，将字符转换为整数。
+
+该哈希函数满足要求：**如果两个`SillyString`对象包含相等的内嵌字符串，则它们将获得相同的哈希码。**
+
+这可以正常工作，**但它可能不会产生良好的性能，因为它为许多不同的字符串返回相同的哈希码**。如果两个字符串以任何顺序包含相同的字母，它们将具有相同的哈希码。即使它们不包含相同的字母，它们可能会产生相同的总量，例如`"ac"`和`"bb"`。或者`abc`同`cab`的哈希码也是一致的
+
+**如果许多对象具有相同的哈希码，它们将在同一个子映射中。如果一些子映射比其他映射有更多的条目，那么当我们有`k`个映射时，加速比可能远远小于`k`。**所以哈希函数的**目的之一是统一**；也就是说，以相等的可能性，在这个范围内产生任何值。(**等概率的在子映射中分配条目，这正是之前我们所担心的**)
+
+<br>
+
+
+
+###### 3.哈希和可变性
+
+`String`是不可变的，`SillyString`也是不可变的，因为`innerString`定义为`final`。一旦你创建了一个`SillyString`，你不能使`innerString`引用不同的`String`，你不能修改所指向的`String`。因此，它将始终具有相同的哈希码。
+
+我们现在用一个Array，和以上的一样，改变的是之前是String,现在是数组(**可变**)
+
+```java
+public class SillyArray {
+    private final char[] array;
+
+    public SillyArray(char[] array) {
+        this.array = array;
+    }
+
+    public String toString() {
+        return Arrays.toString(array);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return this.toString().equals(other.toString());
+    }
+
+    @Override
+    public int hashCode() {
+        int total = 0;
+        for (int i=0; i<array.length; i++) {
+            total += array[i];
+        }
+        System.out.println(total);
+        return total;
+    }
+```
+
+`SillyArray`也提供`setChar`，它能够修改修改数组内的字符。
+
+```java
+public void setChar(int i, char c) {
+    this.array[i] = c;
+}
+```
+
+现在假设我们创建了一个`SillyArray`，并将其添加到`map`。
+
+```java
+SillyArray array1 = new SillyArray("Word1".toCharArray());
+map.put(array1, 1);
+```
+
+这个数组的哈希码是`461`。现在如果我们修改了数组内容，之后尝试查询它，像这样：
+
+```java
+array1.setChar(0, 'C');
+Integer value = map.get(array1);
+```
+
+修改之后的哈希码是`441`。**使用不同的哈希码，我们就很可能进入了错误的子映射**。这就很糟糕了。
+
+**一般来说，使用可变对象作为散列数据结构中的键是很危险的**，这包括`MyBetterMap`和`HashMap`。如果你可以**保证映射中的键不被修改，或者任何更改都不会影响哈希码**，那么这可能是正确的。但是避免这样做可能是一个好主意。（个人认为还是直接避免这种不安全的操作比较好）
+
+<br>
+
+<br>

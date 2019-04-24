@@ -1,4 +1,4 @@
-# 数据结构思维
+数据结构思维
 
 ### 第一章 接口
 
@@ -1830,5 +1830,306 @@ Integer value = map.get(array1);
 
 例如，**假设每次`n`超过`k`的时候，我们都使`k`加倍；在这种情况下，每个映射的条目的平均数量将小于`1`，**并且几乎总是小于`10`，只要**散列函数能够很好地展开键**。
 
-如果**每个子映射的条目数是不变的，我们可以在常数时间内搜索一个子映射**。并且计算散列函数通常是常数时间（它可能取决于键的大小，但不取决于键的数量）。这使得`Map`的核心方法， `put`和`get`时间不变。
+如果**每个子映射的条目数是不变的，我们可以在常数时间内搜索一个子映射**。并且计算散列函数通常是常数时间（它可能取决于键的大小，但不取决于键的数量）。这使得`Map`的核心方法， `put`和`get`时间不变。<br>
 
+
+
+###### 1.MyHashMap
+
+在`MyHashMap.java`中，我提供了哈希表的大纲，它会按需增长。这里是定义的起始：
+
+```java
+public class MyHashMap<K,V> extends MyBetterMap<K,V> implements Map<K,V> {
+
+    // 常数FACTOR（称为负载因子）确定每个子映射的平均最大条目数
+    protected static final double FACTOR = 1.0;
+    
+    @Override
+    public V put(K key, V value) {
+        V oldValue = super.put(key,value);
+
+        if (size()> maps.size() * FACTOR) {
+            rehash();
+        }
+        return oldValue;
+    }
+```
+
+`MyHashMap`扩展了`MyBetterMap`，所以它继承了那里定义的方法。**它覆盖的唯一方法是`put`，**它调用了超类中的`put` -- 也就是说，它调用了`MyBetterMap`中的`put`版本 -- **然后它检查它是否必须`rehash`。**调用`size`返回总数量`n`。调用`maps.size`返回内嵌映射的数量`k`。
+
+**常数`FACTOR`（称为负载因子）确定每个子映射的平均最大条目数。如果`n > k * FACTOR`，这意味着`n/k > FACTOR`，意味着每个子映射的条目数超过阈值，所以我们调用`rehash`。**
+
+下面是给出的`rehash`方法（**收集表中的条目，调整表的大小，然后重新放入条目**）：
+
+```java
+    protected void rehash() {
+        // 扩容
+        List<MyLinearMap<K,V>> oldMaps = maps;
+        makeMaps(maps.size()*2);
+
+        // 将旧的map放进去
+        for (MyLinearMap<K,V> map: oldMaps) {
+            for (Map.Entry<K, V> entry : map.getEntries()) {
+                put(entry.getKey(), entry.getValue());
+            }
+        }
+    }
+```
+
+<br>
+
+
+
+###### 2.分析MyHashMap
+
+如果**最大子映射中的条目数**(FACTOR)**与`n/k`成正比**，并且`k`与`n`成正比，那么多个核心方法就是常数时间的：
+
+```java
+    public boolean containsKey（Object target）{ 
+        MyLinearMap <K，V> map = chooseMap（target）; 
+        return map.containsKey（target）; 
+    } 
+
+    public V get（Object key）{ 
+        MyLinearMap <K，V> map = chooseMap（key）; return map.get（key）; 
+    } 
+    public V remove（Object key）{ 
+        MyLinearMap <K，V> map = chooseMap（key）; 
+        return map.remove（key）; 
+    }
+```
+
+每个方法都计算键的哈希，这是常数时间，然后在一个子映射上调用一个方法，这个方法是常数时间的。**（这些发方法总体上都是常数的）**
+
+但另一个核心方法，`put`有点难分析。当我们**不需要`rehash`时，它是常数时间**，反之，它是线性的。这样同之前的**摊销分析**类似。
+
+假设子映射的初始数量`k`为`2`，负载因子为`1`。**现在我们来看看`put`一系列的键需要多少工作量**。作为基本的“工作单位”，我们**将计算对密钥哈希，并将其添加到子映射中的次数**。
+
+我们第一次调用`put`时，它需要`1`个工作单位。第二次也需要`1`个单位。第三次我们需要`rehash`，所以需要`2`个单位重新填充现有的键，和`1`个单位来对新键哈希。
+
+现在哈希表的大小是`4`，所以下次调用`put`时 ，需要`1`个工作单位。但是下一次我们必须`rehash`，需要`4`个单位来`rehash`现有的键，和`1`个单位来对新键哈希。
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/11-1.jpg)
+
+如图所示，**对新键哈希的正常工作量在底部展示（计算哈希），额外工作量展示为塔楼**(扩容部分)。
+
+如箭头所示，如果我们把塔楼推倒，每个积木都会在下一个塔楼之前填满空间。结果似乎`2`个单位的均匀高度，这表明`put`的平均工作量约为`2`个单位。**这意味着`put`平均是常数时间**。
+
+这个图还显示了，当我们`rehash`的时候，为什么加倍子映射数量`k`很重要。**如果我们只是加上`k`而不是加倍，那么这些塔楼会靠的太近，他们会开始堆积。这样就不会是常数时间了**。
+
+<br>
+
+
+
+###### 3.权衡
+
+我们已经表明，`containsKey`，`get`和`remove`是常数时间，`put`平均为常数时间。我们应该花一点时间来欣赏它有多么出色。**无论哈希表有多大，这些操作的性能几乎相同**。
+
+记住，我们的分析基于一个简单的计算模型，其中每个“工作单位”花费相同的时间量。真正的电脑比这更复杂。特别是，当处理足够小，适应高速缓存的数据结构时，它们通常最快；如果结构不适合高速缓存但仍适合内存，则稍慢一点；如果结构不适合在内存中，则非常慢。
+
+这个实现的**另一个限制是**，**如果我们得到了一个值而不是一个键时，那么散列是不会有帮助的**：`containsValue`是线性的，因为它必须搜索所有的子映射。查找一个值并找到相应的键（或可能的键），没有特别有效的方式。
+
+还有一个限制：`MyLinearMap`的**一些常数时间的方法变成了线性的**。例如：
+
+```java
+    public void clear() {
+        for (int i=0; i<maps.size(); i++) {
+            maps.get(i).clear();
+        }
+    }
+```
+
+`clear`必须清除所有的子映射，子映射的数量与`n`成正比，所以它是线性的。幸运的是，这个操作并不常用，所以在大多数应用中，这种权衡是可以接受的。
+
+<br>
+
+
+
+###### 4.检查MyHashMap
+
+在我们继续之前，我们应该检查一下，`MyHashMap.put`是否真的是常数时间。
+
+下面是测试用例：
+
+```java
+    public static void profileMyHashMap() {
+        Profiler.Timeable timeable = new Profiler.Timeable() {
+            Map<String,Integer> map;
+
+            @Override
+            public void setup(int n) {
+                map = new MyHashMap<String, Integer>();
+            }
+
+            @Override
+            public void timeMe(int n) {
+                for (int i=0; i<n; i++) {
+                    map.put(String.format("%10d",i),i);
+                }
+            }
+        };
+        int startN = 1000;
+        int endMillis = 5000;
+        runProfiler("MyHashMap put", timeable, startN, endMillis);
+    }
+```
+
+测试结果：
+
+```java
+1000, 131
+2000, 366
+4000, 974
+8000, 3088
+16000, 11760
+Estimated slope= 1.6053112075356588
+```
+
+可以发现，**它的斜率为1.6左右，这表明这个实现不是一直都是常数的**，检查一下问题出在哪里.
+
+<br>
+
+
+
+###### 5.修复MyHashMap
+
+`MyHashMap`的问题是`size`，它继承自`MyBetterMap`：
+
+```java
+    public int size() {
+        int total = 0;
+        for (MyLinearMap<K, V> map: maps) {
+            total += map.size();
+        }
+        return total;
+    }
+```
+
+为了累计整个大小，它必须迭代子映射。**由于我们增加了子映射的数量`k`，随着条目数`n`增加，所以`k`与`n`成正比，所以`size`是线性的。**
+
+**`put`也是线性的**，因为它使用`size`：
+
+```java
+    public V put(K key, V value) {
+        V oldValue = super.put(key, value);
+
+        if (size() > maps.size() * FACTOR) {
+            rehash();
+        }
+        return oldValue;
+    }
+```
+
+如果`size`是线性的，我们做的一切都浪费了。幸运的是，有一个简单的解决方案，我们以前看过：我们必须维护实例变量中的条目数，并且每当我们调用一个改变它的方法时更新它。（**实时更新size**）
+
+下面是它的初始结构：
+
+```java
+public class MyFixedHashMap<K, V> extends MyHashMap<K, V> implements Map<K, V> {
+
+    private int size = 0;
+
+    public void clear() {
+        super.clear();
+        size = 0;
+    }
+```
+
+我们不修改`MyHashMap`，我定义一个扩展它的新类。它添加一个新的实例变量`size`，它被初始化为零。
+
+更新`remove`和`put`有点困难，因为当我们调用超类的该方法，我们不能得知子映射的大小是否改变。这是我的解决方式：
+
+```java
+    public V remove(Object key) {
+        MyLinearMap<K, V> map = chooseMap(key);
+        size -= map.size();
+        V oldValue = map.remove(key);
+        size += map.size();
+        return oldValue;
+    }
+```
+
+`remove`使用`chooseMap`找到正确的子映射，然后减去子映射的大小。它会在子映射上调用`remove`，根据是否找到了键，它可以改变子映射的大小，也可能不会改变它的大小。但是无论哪种方式，**我们将子映射的新大小加到`size`，所以最终的`size`值是正确的。**
+
+新版的`put`方法：
+
+```java
+    public V put(K key, V value) {
+        MyLinearMap<K, V> map = chooseMap(key);
+        size -= map.size();
+        V oldValue = map.put(key, value);
+        size += map.size();
+
+        if (size() > maps.size() * FACTOR) {
+            size = 0;
+            rehash();
+        }
+        return oldValue;
+    }
+    
+        public int size() {
+        return size;
+    }
+```
+
+当我测量这个解决方案时，我发现放入`n`个键的总时间正比于`n`，也就是说，**每个`put`是常数时间的**，符合预期。
+
+我们正常的去走下流程，`chooseMap`为常数时间，子映射的`push`为常数时间，`rehash`为常数时间，**现在的`put`方法是常数时间，**同之前对比，我们所作的改变主要体现在两个方面：
+
+- **摊销分析**，通过摊销分析，随着map变大，扩充哈希表，添加子映射摊销时间复杂度，通过加载因子控制每个子映射的数量
+- **实时更新Size**，由于之前的摊销分析，增加了多个子映射，size()由原来的常数级变为线性级方法，我们实时维护更新它，使得它也变为常数级方法
+
+下面给出性能测试：
+
+```java
+public static void profileMyFixedHashMap() {
+    Profiler.Timeable timeable = new Profiler.Timeable() {
+        Map<String,Integer> map;
+
+        @Override
+        public void setup(int n) {
+            map = new MyFixedHashMap<String, Integer>();
+        }
+
+        @Override
+        public void timeMe(int n) {
+            for (int i=0; i<n; i++) {
+                map.put(String.format("%10d",i),i);
+            }
+        }
+    };
+    int startN = 8000;
+    int endMillis = 1000;
+    runProfiler("MyHashMap put", timeable, startN, endMillis);
+}
+
+```
+
+测试结果：
+
+```java
+8000, 243
+16000, 288
+32000, 428
+64000, 615
+128000, 1281
+Estimated slope= 0.5891002112256021
+```
+
+<br>
+
+
+
+###### 6.UML类图
+
+这里用 [yUML](http://yuml.me/) 生成**UML类图**，帮助我们梳理本章中的类
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/11-2.jpg)
+
+不同的关系由不同的箭头表示：
+
+- 实心箭头表示 HAS-A 关系。例如，每个`MyBetterMap`实例包含多个`MyLinearMap`实例，因此它们通过实线箭头连接。
+- 空心和实线箭头表示 IS-A 关系。例如，`MyHashMap`扩展 了`MyBetterMap`，因此它们通过 IS-A 箭头连接。
+- 空心和虚线箭头表示一个类实现了一个接口;在这个图中，每个类都实现 `Map`。
+
+**UML 类图提供了一种简洁的方式，来表示大量类集合的信息。**在设计阶段中，它们用于交流备选设计，在实施阶段中，用于维护项目的共享思维导图，并在部署过程中记录设计。

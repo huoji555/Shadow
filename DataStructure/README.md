@@ -2133,3 +2133,309 @@ Estimated slope= 0.5891002112256021
 - 空心和虚线箭头表示一个类实现了一个接口;在这个图中，每个类都实现 `Map`。
 
 **UML 类图提供了一种简洁的方式，来表示大量类集合的信息。**在设计阶段中，它们用于交流备选设计，在实施阶段中，用于维护项目的共享思维导图，并在部署过程中记录设计。
+
+<br><br>
+
+
+
+### 第十三章 TreeMap
+
+> 这一章展示了**二叉搜索树**，它是个`Map`接口的高效实现。如果我们想让元素**有序**，它非常实用。
+
+
+
+###### 1.哈希的不足
+
+`HashMap`被广泛使用，但并不是唯一的`Map`实现。有几个原因可能需要另一个实现：
+
+- **哈希可能很慢**，所以即使`HashMap`操作是常数时间，“常数”可能很大。 如果哈希函数将键均匀分配给子映射，效果很好。但设计良好的散列函数并不容易，如果太多的键在相同的子映射上，那么`HashMap`的性能可能会很差。
+-  **哈希表中的键不以任何特定顺序存储**；实际上，当表增长并且键被重新排列时，顺序可能会改变。对于某些应用程序，必须或至少保持键的顺序，这很有用。
+
+很难同时解决所有这些问题，但是 Java 提供了一个称为`TreeMap`的实现：
+
+- **它不使用哈希函数**，所以它避免了哈希的开销和选择哈希函数的困难。
+- 在`TreeMap`之中，**键被存储在二叉搜索树中**，这使我们可以以线性时间顺序遍历键。
+- 核心方法的**运行时间与`log(n)`成正比**，并不像常数时间那样好，但仍然非常好。
+
+下一节中，我将解释二进制搜索树如何工作，然后你将使用它来实现`Map`。
+
+<br>
+
+
+
+###### 2.二叉搜索树
+
+二叉搜索树（BST）是一个树，其中每个`node`（节点）包含一个键，并且每个都具有“BST 属性”：
+
+- 如果`node`有一个左子树，左子树中的所有键都必须小于`node`的键。
+- 如果`node`有一个右子树，右子树中的所有键都必须大于`node`的键。
+
+二叉搜索树示例：
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/12-1.jpg)
+
+在二叉搜索树中查找一个键是很快的，因为我们不必搜索整个树。从根节点开始，我们可以使用以下算法：
+
+- 将你要查找的键`target`，与当前节点的键进行比较。如果他们相等，你就完成了。
+- 如果`target`小于当前键，搜索左子树。如果没有，`target`不在树上。
+- 如果`target`大于当前键，搜索右子树。如果没有，`target`不在树上。
+
+在树的每一层，你只需要搜索一个子树。例如，如果你在上图中查找`target = 4`，则从根节点开始，它包含键`8`。因为`target`小于`8`，你走了左边。因为`target`大于`3`，你走了右边。因为`target`小于`6`，你走了左边。然后你找到你要找的键
+
+现在你可能会看到这个规律。如果我们将树的层数从`1`数到`n`，第`i`层可以拥有多达`2^(n-1)`个节点。`h`层的树共有`2^h-1`个节点。如果我们有：
+
+```java
+n = 2^h - 1
+```
+
+我们可以对两边取以`2`为底的对数：
+
+```java
+log2(n) ≈ h
+```
+
+意思是树的高度正比于`logn`，**如果它是满的(每一层包含最大数量的节点)**，满二叉树。
+
+<br>
+
+
+
+###### 3.TreeMap结构
+
+这里将要使用**二叉搜索树**编写`Map`接口的一个实现，这是开头结构：
+
+```java
+public class MyTreeMap<K, V> implements Map<K, V> {
+
+    private int size = 0;
+    private Node root = null;
+```
+
+`size`追踪键的数量，`root`为根节点，下面是`Node`的定义：
+
+```java
+    protected class Node {
+        public K key;
+        public V value;
+        public Node left = null;
+        public Node right = null;
+
+        public Node(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+```
+
+这时，我们可以实现一些相对简单的方法：
+
+```java
+ public int size() {
+        return size;
+    }
+
+    public void clear() {
+        size = 0;
+        root = null;
+    }
+```
+
+<br>
+
+
+
+
+
+### 第十四章 二叉搜索树
+
+本章继续承接上章的内容，具体实现`TreeMap`中的方<br>
+
+
+
+###### 1.简单的`TreeMap`
+
+这里比较核心的一个方法是`findNode`，用来寻找与键值相当的节点，下面是它的实现：
+
+```java
+  private Node findNode(Object target) {
+        if (target == null) {
+            throw new IllegalArgumentException();
+        }
+
+        @SuppressWarnings("unchecked")
+        Comparable<?super K> k = (Comparable<?super K>)target;
+
+        Node node = root;
+        while (node != null) {
+            int cmp = k.compareTo(node.key);
+            if (cmp <0)
+                node = node.left;
+            else if (cmp>0)
+                node = node.right;
+            else 
+            return node;
+        }
+        return null;
+    }
+```
+
+- 在这个实现中，`null`不是键的合法值。
+- 在我们可以在`target`上调用`compareTo`之前，我们必须把它强制转换为某种形式的`Comparable`。这里使用的“**类型通配符**”会尽可能允许；也就是说，它适用于任何实现`Comparable`类型，并且它的`compareTo`接受`K`或者任和`K`的超类（**可以同任何类型做比较**）。
+
+之后，实际搜索比较简单。我们初始化一个循环变量`node`来引用根节点。每次循环中，我们将目标与`node.key`比较。**如果目标小于当前键，我们移动到左子树。如果它更大，我们移动到右子树。如果相等，我们返回当前节点(这里用的是迭代，不断赋值)。**
+
+<br>
+
+
+
+###### 2.搜索值
+
+**`findNode`运行时间与树的高度成正比**，而不是节点的数量，因为我们不必搜索整个树。**但是对于`containsValue`，我们必须搜索值，而不是键**；BST 的特性不适用于值，因此我们必须搜索整个树。
+
+下面是`containsValue`方法，这里用**递归**实现：
+
+```java
+public boolean containsValue(Object target) {
+    return containsValueHelper(root, target);
+}
+
+private boolean containsValueHelper(Node node, Object target) {
+    if (node == null) {
+        return false;
+    }
+    if (equals(target, node.value)) {
+        return true;
+    }
+    if (containsValueHelper(node.left, target)) {
+        return true;
+    }
+    if (containsValueHelper(node.right, target)) {
+        return true;
+    }
+    return false;
+}
+```
+
+这是`containsValueHelper`的工作原理：
+
+- 第一个`if`语句检查递归的边界情况。如果`node`是`null`，那意味着我们已经递归到树的底部，没有找到`target`，所以我们应该返回`false`。请注意，**这只意味着目标没有出现在树的一条路径上；它仍然可能会在另一条路径上被发现。**
+- 第二种情况检查我们是否找到了我们正在寻找的东西。如果是这样，我们返回`true`。否则，我们必须继续。
+- 第三种情况是执行递归调用，在左子树中搜索`target`。如果我们找到它，我们可以立即返回`true`，而不搜索右子树。否则我们继续。
+- 第四种情况是搜索右子树。同样，如果我们找到我们正在寻找的东西，我们返回`true`。否则，我们搜索完了整棵树，返回`false`。
+
+该方法“访问”了树中的每个节点，**所以它的所需时间与节点数成正比**。
+
+<br>
+
+
+
+###### 3.实现`put`
+
+`put`方法比起`get`要复杂一些，因为要处理两种情况：
+
+1. **如果给定的键已经在树中，则替换并返回旧值**；
+2. **否则必须在树中添加一个新的节点，在正确的地方**。
+
+```java
+public V put(K key, V value) {
+    if (key == null) {
+        throw new IllegalArgumentException();
+    }
+    if (root == null) {
+        root = new Node(key, value);
+        size++;
+        return null;
+    }
+    return putHelper(root, key, value);
+}
+
+private V putHelper(Node node, K key, V value) {
+    Comparable<? super K> k = (Comparable<? super K>) key;
+    int cmp = k.compareTo(node.key);
+
+    if (cmp < 0) {
+        if (node.left == null) {
+            node.left = new Node(key, value);
+            size++;
+            return null;
+        } else {
+            return putHelper(node.left, key, value);
+        }
+    }
+    if (cmp > 0) {
+        if (node.right == null) {
+            node.right = new Node(key, value);
+            size++;
+            return null;
+        } else {
+            return putHelper(node.right, key, value);
+        }
+    }
+    V oldValue = node.value;
+    node.value = value;
+    return oldValue;
+}
+```
+
+第一个参数`node`最初是树的根，但是每次我们执行递归调用，它指向了不同的子树。就像`get`一样，我们用`compareTo`方法来弄清楚，跟随哪一条树的路径。如果`cmp < 0`，我们添加的键小于`node.key`，那么我们要走左子树。有两种情况：
+
+- 如果左子树为空，那就是，如果`node.left`是`null`，我们已经到达树的底部而没有找到`key`。这个时候，我们知道`key`不在树上，我们知道它应该放在哪里。所以我们创建一个新节点，并将它添加为`node`的左子树。
+- 否则我们进行递归调用来搜索左子树。
+
+如果`cmp > 0`，我们添加的键大于`node.key`，那么我们要走右子树。我们处理的两个案例与上一个分支相同。最后，如果`cmp == 0`，我们在树中找到了键，那么我们更改它并返回旧的值。
+
+<br>
+
+
+
+###### 4.中序遍历
+
+这里我们还剩最后一个方法`KeySet`，它返回一个`Set`，按升序包含树中的键。在其他`Map`实现中，`keySet`返回的键没有特定的顺序，但是树形实现的一个功能是，**对键进行简单而有效的排序**。下面是如何实现它的：
+
+```java
+public Set<K> keySet() {
+    Set<K> set = new LinkedHashSet<K>();
+    addInOrder(root, set);
+    return set;
+}
+
+private void addInOrder(Node node, Set<K> set) {
+    if (node == null) return;
+    addInOrder(node.left, set);
+    set.add(node.key);
+    addInOrder(node.right, set);        
+}
+```
+
+在`keySet`中，我们创建一个`LinkedHashSet`，这是一个`Set`实现，使元素保持有序,第一个参数`node`最初是树的根，但正如你的期望，我们用它来递归地遍历树。`addInOrder`对树执行经典的“中序遍历”。
+
+1. 按顺序遍历左子树。
+2. 添加`node.key`。
+3. 按顺序遍历右子树。
+
+<br>
+
+
+
+###### 5.二叉搜索树的问题
+
+我们获取最有查询效率时，**一般是O(log(n))**，这种情况会在所搜索的树为平衡二叉树时出现，若不是平衡二叉树，搜索效率则会很低。
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/13-1.jpg)
+
+如果你思考`put`如何工作，你可以弄清楚发生了什么。每次添加一个新的键时，它都大于树中的所有键，所以我们总是选择右子树，并且总是将新节点添加为，最右边的节点的右子节点。结果是一个“不平衡”的树，只包含右子节点。
+
+**这种树的高度正比于`n`，不是`logn`，所以`get`和`put`的性能是线性的，不是对数的**
+
+<br>
+
+
+
+###### 6.自平衡树
+
+这个问题有两种可能的解决方案：
+
+- **你可以避免向`Map`按顺序添加键**。但这并不总是可能的。 你可以制作一棵树，如果碰巧按顺序处理键，那么它会更好地处理键。(**按顺序添加会导致这是一个极不平衡的树**)
+- 第二个解决方案是更好的，有几种方法可以做到。最常见的是修改`put`，以便它检测树何时开始变得不平衡，如果是，则重新排列节点。具有这种能力的树被称为“自平衡树”。普通的自平衡树包括 AVL 树（“AVL”是发明者的缩写），以及红黑树，这是 Java`TreeMap`所使用的。
+
+总而言之，二叉搜索树可以以对数时间实现`get`和`put`，但是只能按照使得树足够平衡的顺序添加键。**自平衡树通过每次添加新键时，进行一些额外的工作来避免这个问题**。

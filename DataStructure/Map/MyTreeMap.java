@@ -230,23 +230,112 @@ public class MyTreeMap<K,V> implements Map<K,V> {
         throw  new UnsupportedOperationException();
     }
 
+
+    /**
+     * @Author Ragty
+     * @Description 删除节点
+     * @Date 10:16 2019/4/30
+     **/
     @Override
-    public V remove(Object key) {
+    public V remove(Object k) {
         // 一会儿我来填这个坑
-        Node node = findNode(key);
-        if (node == null) {
+        Comparable<?super K> key = (Comparable<?super K>)k;
+        Node currentNode = this.root; //用来保存待删除节点
+        Node parentNode = this.root;  //保存待删除节点的父节点
+        boolean isLeftNode = true;   //左右节点判断
+        V oldValue = null;
+
+        // 寻找需要的节点(同时记录它的位置)
+        while ( (currentNode != null) && (currentNode.key != key) ) {
+            parentNode = currentNode;
+            int cmp = key.compareTo(currentNode.key);
+            if (cmp < 0) {
+                currentNode = currentNode.left;
+                isLeftNode = true;
+            } else {
+                currentNode = currentNode.right;
+                isLeftNode = false;
+            }
+        }
+
+        // 空树
+        if (currentNode == null) {
             return null;
         }
-        V oldValue = node.value;
-        deleteNode(node);
+
+        // 删除的节点是叶子节点
+        if ( (currentNode.left == null) && (currentNode.right == null) ) {
+            if (currentNode == this.root) {
+                oldValue = root.value;
+                root = null;
+            } else if (isLeftNode) {
+                oldValue = parentNode.left.value;
+                parentNode.left = null;
+            } else {
+                oldValue = parentNode.right.value;
+                parentNode.right = null;
+            }
+        } else if ( (currentNode.right == null) && (currentNode.left != null) ) {   //删除节点只有左孩子(分情况看它挂到哪)
+            if (currentNode == this.root) {
+                oldValue = root.value;
+                root = currentNode.left;
+            } else if (isLeftNode) {
+                oldValue = currentNode.left.value;
+                parentNode.left = currentNode.left;
+            } else {
+                oldValue = currentNode.right.value;
+                parentNode.right = currentNode.left;
+            }
+        } else if ( (currentNode.right != null) && (currentNode.left == null) ) {   //删除节点只有右孩子
+            if (currentNode == root) {
+                oldValue = root.value;
+                root = currentNode.right;
+            } else if (isLeftNode) {
+                oldValue = parentNode.left.value;
+                parentNode.left = currentNode.right;
+            } else {
+                oldValue = parentNode.right.value;
+                parentNode.right = currentNode.right;
+            }
+        } else {    //待删除节点既有左子树，又有右子树(思路:将待删除节点右子树的最小节点赋值给待删除节点)
+            Node directPostNode = getDirectPostNode(currentNode);
+            oldValue = directPostNode.value;
+            currentNode.key = directPostNode.key;
+            currentNode.value = directPostNode.value;
+        }
+        size--;
         return oldValue;
     }
 
-    private void deleteNode(Node node) {
-        size--;
-        // waiting...
 
+
+    /**
+     * @Author Ragty
+     * @Description 得到待删除节点的直接后继节点(右子树的最小节点)
+     * @Date 10:17 2019/4/30
+     **/
+    private Node getDirectPostNode(Node delNode) {
+
+        Node parentNode = delNode;  //用来保存待删除节点的（直接后继节点的父亲节点）
+        Node directNode = delNode;  //用来保存待删除节点的（直接后继节点）
+        Node currentNode = delNode.right;   // 待删除节点右子树
+
+        while (currentNode != null) {
+            parentNode = directNode;
+            directNode = currentNode;
+            currentNode = currentNode.left;
+        }
+
+        // 直接删除此后继节点(因为不是直接相连的,最小的肯定是叶子节点或者没有左子树)
+        if (directNode != delNode.right) {
+            parentNode.left = directNode.right;
+            directNode.right = null;
+        }
+
+        return directNode;
     }
+
+
 
 
     public static void main(String[] args) {
@@ -258,6 +347,7 @@ public class MyTreeMap<K,V> implements Map<K,V> {
 
         System.out.println(map.containsKey("Word1"));
         System.out.println(map.containsValue(5));
+        map.remove("Word2");
 
         for (String key: map.keySet()) {
             System.out.println(key + ", " + map.get(key));

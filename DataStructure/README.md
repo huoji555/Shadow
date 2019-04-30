@@ -2439,3 +2439,120 @@ private void addInOrder(Node node, Set<K> set) {
 - 第二个解决方案是更好的，有几种方法可以做到。最常见的是修改`put`，以便它检测树何时开始变得不平衡，如果是，则重新排列节点。具有这种能力的树被称为“自平衡树”。普通的自平衡树包括 AVL 树（“AVL”是发明者的缩写），以及红黑树，这是 Java`TreeMap`所使用的。
 
 总而言之，二叉搜索树可以以对数时间实现`get`和`put`，但是只能按照使得树足够平衡的顺序添加键。**自平衡树通过每次添加新键时，进行一些额外的工作来避免这个问题**。
+
+<br>
+
+
+
+###### 7.二叉搜索树的**删除**
+
+**实现思路：**
+
+1. 删除叶子节点
+2. 删除只有左孩子的节点
+3. 删除只有右孩子的节点
+4. 删除左右孩子都有的节点，这里我们需要找出待删除节点的右子树中的最小节点，并放到待删除位置上
+
+下面是实现的具体方案:
+
+```java
+public V remove(Object k) {
+        // 一会儿我来填这个坑
+        Comparable<?super K> key = (Comparable<?super K>)k;
+        Node currentNode = this.root; //用来保存待删除节点
+        Node parentNode = this.root;  //保存待删除节点的父节点
+        boolean isLeftNode = true;   //左右节点判断
+        V oldValue = null;
+
+        // 寻找需要的节点(同时记录它的位置)
+        while ( (currentNode != null) && (currentNode.key != key) ) {
+            parentNode = currentNode;
+            int cmp = key.compareTo(currentNode.key);
+            if (cmp < 0) {
+                currentNode = currentNode.left;
+                isLeftNode = true;
+            } else {
+                currentNode = currentNode.right;
+                isLeftNode = false;
+            }
+        }
+
+        // 空树
+        if (currentNode == null) {
+            return null;
+        }
+
+        // 删除的节点是叶子节点
+        if ( (currentNode.left == null) && (currentNode.right == null) ) {
+            if (currentNode == this.root) {
+                oldValue = root.value;
+                root = null;
+            } else if (isLeftNode) {
+                oldValue = parentNode.left.value;
+                parentNode.left = null;
+            } else {
+                oldValue = parentNode.right.value;
+                parentNode.right = null;
+            }
+        } else if ( (currentNode.right == null) && (currentNode.left != null) ) {   //删除节点只有左孩子(分情况看它挂到哪)
+            if (currentNode == this.root) {
+                oldValue = root.value;
+                root = currentNode.left;
+            } else if (isLeftNode) {
+                oldValue = currentNode.left.value;
+                parentNode.left = currentNode.left;
+            } else {
+                oldValue = currentNode.right.value;
+                parentNode.right = currentNode.left;
+            }
+        } else if ( (currentNode.right != null) && (currentNode.left == null) ) {   //删除节点只有右孩子
+            if (currentNode == root) {
+                oldValue = root.value;
+                root = currentNode.right;
+            } else if (isLeftNode) {
+                oldValue = parentNode.left.value;
+                parentNode.left = currentNode.right;
+            } else {
+                oldValue = parentNode.right.value;
+                parentNode.right = currentNode.right;
+            }
+        } else {    //待删除节点既有左子树，又有右子树(思路:将待删除节点右子树的最小节点赋值给待删除节点)
+            Node directPostNode = getDirectPostNode(currentNode);
+            oldValue = directPostNode.value;
+            currentNode.key = directPostNode.key;
+            currentNode.value = directPostNode.value;
+        }
+        size--;
+        return oldValue;
+    }
+```
+
+**得到待删除节点的直接后继节点：**
+
+```java
+   private Node getDirectPostNode(Node delNode) {
+
+        Node parentNode = delNode;  //用来保存待删除节点的（直接后继节点的父亲节点）
+        Node directNode = delNode;  //用来保存待删除节点的（直接后继节点）
+        Node currentNode = delNode.right;   // 待删除节点右子树
+
+        while (currentNode != null) {
+            parentNode = directNode;
+            directNode = currentNode;
+            currentNode = currentNode.left;
+        }
+
+        // 直接删除此后继节点(因为不是直接相连的,最小的肯定是叶子节点或者没有左子树)
+        if (directNode != delNode.right) {
+            parentNode.left = directNode.right;
+            directNode.right = null;
+        }
+
+        return directNode;
+    }
+```
+
+**具体的可以看图：**
+
+![](http://images2015.cnblogs.com/blog/938494/201702/938494-20170209210350729-446211360.png)
+

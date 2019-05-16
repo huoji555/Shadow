@@ -26,9 +26,19 @@ public class WikiFetcher {
         sleepIfNeed();
         Connection connection = Jsoup.connect(url);
         Document doc = connection.get();
-        Element content = doc.getElementById("mw-content-text");
-        Elements para = content.select("p");
-        return para;
+        // Element content = doc.getElementById("mw-content-text");
+       // System.out.println(content);
+        Elements res = new Elements();
+        Elements para = doc.getElementsByClass("main-content");
+        for (Element element: para) {
+            Elements e1 = element.getElementsByClass("para");
+            for (Element element1: e1) {
+                res.add(element1);
+            }
+        }
+
+        //para = para.select("para");
+        return res;
     }
 
 
@@ -79,8 +89,9 @@ public class WikiFetcher {
 
     public static void main(String[] args) throws Exception{
         WikiFetcher wf = new WikiFetcher();
-        String url = "https://en.wikipedia.org/wiki/Java_(programming_language)";
-        Elements paragraphs = wf.readWikiPedia(url);
+        //String url = "https://en.wikipedia.org/wiki/Java_(programming_language)";
+        String url = "https://baike.baidu.com/item/java/85979";
+        Elements paragraphs = wf.fetchWikiPedia(url);
 
         for (Element paragraph: paragraphs) {
             System.out.println(paragraph);

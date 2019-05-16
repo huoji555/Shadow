@@ -2556,3 +2556,286 @@ public V remove(Object k) {
 
 ![](http://images2015.cnblogs.com/blog/938494/201702/938494-20170209210350729-446211360.png)
 
+
+
+
+
+
+
+### 第十五章 持久化
+
+现在我们回顾一下搜索引擎的构建:
+
+- 抓取：我们需要一个程序，可以下载一个网页，解析它，并提取文本和任何其他页面的链接。
+- 索引：我们需要一个索引，可以查找检索项并找到包含它的页面。
+- 检索：我们需要一种方法，从索引中收集结果，并识别与检索项最相关的页面。
+
+抓取和索引我们之前都处理过，但是还不够好，我们现在先处理索引，存在Redis里持久化并排序，最后再处理检索功能。
+
+
+
+###### 1.Redis
+
+索引器的之前版本，将索引存储在两个数据结构中：`TermCounter`将检索词映射为网页上显示的次数，以及`Index`将检索词映射为出现的页面集合。
+
+这些数据结构存储在正在运行的 Java 程序的内存中，这意味着当程序停止运行时，索引会丢失。仅在运行程序的内存中存储的数据称为“易失的”，因为程序结束时会消失。
+
+但这个解决方案有几个问题：
+
+- 读取和写入大型数据结构（如 Web 索引）会很慢。
+- 整个数据结构可能不适合单个运行程序的内存。
+- 如果程序意外结束（例如，由于断电），则自程序上次启动以来所做的任何更改都将丢失。
+
+现在我们用Redis解决这个问题。
+
+
+
+###### 2.制作基于Redis的索引
+
+此时，梳理一下思路：
+
+- `JedisMaker.java`包含连接到 Redis 服务器并运行几个 Jedis 方法的示例代码。
+- `JedisIndex.java`包含此练习的起始代码。
+- `JedisIndexTest.java`包含`JedisIndex`的测试代码。
+- `WikiFetcher.java`包含我们在以前的练习中看到的代码，用于阅读网页并使用`jsoup`进行解析。
+
+你还将需要这些文件，你在以前的练习中碰到过：
+
+`Index.java`使用 Java 数据结构实现索引。 `TermCounter.java`表示从检索项到其频率的映射。`WikiNodeIterable.java`迭代`jsoup`生成的 DOM 树中的节点。
+
+
+
+现在，我们需要做的事是连接Redis服务器:
+
+这里用的方法是，本地安装redis,java客户端推荐用Jedis
+
+下面是具体创建连接及测试的方法：
+
+```java
+public class JedisMaker {
+
+    /**
+     * @Author Ragty
+     * @Description 创建Redis连接
+     * @Date 11:52 2019/5/10
+     **/
+    public static Jedis make() {
+        Jedis jedis = new Jedis("localhost",6379);
+        return jedis;
+    }
+
+
+    public static void main(String[] args) {
+
+        Jedis jedis = make();
+
+        // String
+        jedis.set("mykey", "myvalue");
+        String value = jedis.get("mykey");
+        System.out.println("Got value: " + value);
+
+        // Set
+        jedis.sadd("myset", "element1", "element2", "element3");
+        System.out.println("element2 is member: " + jedis.sismember("myset", "element2"));
+
+        // List
+        jedis.rpush("mylist", "element1", "element2", "element3");
+        System.out.println("element at index 1: " + jedis.lindex("mylist", 1));
+
+        // Hash
+        jedis.hset("myhash", "word1", Integer.toString(2));
+        jedis.hincrBy("myhash", "word2", 1);
+        System.out.println("frequency of word1: " + jedis.hget("myhash", "word1"));
+        System.out.println("frequency of word2: " + jedis.hget("myhash", "word2"));
+
+        jedis.close();
+    }
+
+
+}
+```
+
+
+
+
+
+
+
+### 第十六章 爬取百度
+
+
+
+###### 1.基于Redis的索引器
+
+在我的解决方案中，我们在 Redis 中存储两种结构：
+
+- 对于每个检索词，我们有一个`URLSet`，它是一个 Redis 集合，包含检索词的 URL。
+- 对于每个网址，我们有一个`TermCounter`，这是一个 Redis 哈希表，将每个检索词映射到它出现的次数。
+
+在`JedisIndex`中，我提供了一个方法，它可以接受一个检索词并返回 Redis 中它的`URLSet`的键：
+
+```java
+ private String urlSetKey(String url) {
+        return "URLSet:"+url;
+ }
+```
+
+以及一个方法，接受 URL 并返回 Redis 中它的`TermCounter`的键：
+
+```java
+private String termCounterKey(String term) {
+        return "TermCounter:"+term;
+}
+```
+
+这里是`indexPage`的实现（索引化一个界面）:
+
+```java
+	public void indexPage(String url, Elements elements) {
+        System.out.println("Indexing..." + url);
+
+        TermCounter tc = new TermCounter(url);
+        tc.processElements(elements);
+
+        pushTermCounterToRedis(tc);
+    }
+```
+
+为了索引页面，我们：
+
+- 为页面内容创建一个 Java 的`TermCounter`，使用上一个练习中的代码。
+- 将`TermCounter`的内容推送到 Redis。
+
+以下是将`TermCounter`的内容推送到 Redis 的新代码：
+
+```java
+    public List<Object> pushTermCounterToRedis(TermCounter tc) {
+        Transaction t = jedis.multi();
+
+        String url = tc.getLabel();
+        String redisKey = urlSetKey(url);
+        t.del(redisKey);
+
+        for (String term: tc.keySet()) {
+            Integer count = tc.get(term);
+            t.hset(redisKey, term, count.toString());
+            t.sadd(termCounterKey(term),url);
+        }
+        List<Object> res = t.exec();
+        return res;
+    }
+```
+
+该方法使用`Transaction`来收集操作，**并将它们一次性发送到服务器，这比发送一系列较小操作要快得多**。
+
+它遍历`TermCounter`中的检索词。对于每一个，它：
+
+- 在 Redis 上寻找或者创建`TermCounter`，然后为新的检索词添加字段。
+- 在 Redis 上寻找或创建`URLSet`，然后添加当前的 URL。
+
+如果页面已被索引，则`TermCounter`在推送新内容之前删除旧页面 。
+
+这里还需要`getCounts`，它需要一个检索词，并从该词出现的每个网址返回一个映射。这是我的解决方案：
+
+```java
+    public Map<String, Integer> getCounts(String term) {
+        Map<String, Integer> map = new HashMap<String, Integer>();
+        Set<String> urls = getURLs(term);
+        for (String url: urls) {
+            Integer count = getCount(url, term);
+            map.put(url, count);
+        }
+        return map;
+    }
+```
+
+此方法使用两种辅助方法：
+
+- `getURLs`接受检索词并返回该字词出现的网址集合。
+- `getCount`接受 URL 和检索词，并返回该检索词在给定 URL 处显示的次数。
+
+以下是实现：
+
+```java
+    public Set<String> getURLs(String term) {
+        Set<String> set = jedis.smembers(termCounterKey(term));
+        return set;
+    }
+
+    public Integer getCount(String url, String term) {
+        String redisKey = urlSetKey(url);
+        String count = jedis.hget(redisKey, term);
+        return new Integer(count);
+    }
+```
+
+
+
+###### 2.查找的分析
+
+假设我们索引了`N`个页面，并发现了`M`个唯一的检索词。检索词的查询需要多长时间？在继续之前，先考虑一下你的答案。
+
+要查找一个检索词，我们调用`getCounts`，其中：
+
+- 创建映射。
+- 调用`getURLs`来获取 URL 的集合。
+- 对于集合中的每个 URL，调用`getCount`并将条目添加到`HashMap`。
+
+`getURLs`**所需时间与包含检索词的网址数成正比**。对于罕见的检索词，这可能是一个很小的数字，但是对于常见检索词，它可能和`N`一样大。
+
+在循环中，我们调用了`getCount`，它在 Redis 上寻找`TermCounter`，查找一个检索词，并向`HashMap`添加一个条目。那些都是常数时间的操作，所以在最坏的情况下，`getCounts`的整体复杂度是`O(N)`。然而实际上，运行时间正比于包含检索词的页面数量，通常比`N`小得多。
+
+这个算法根据复杂性是有效的，但是它非常慢，因为它向 **Redis 发送了许多较小的操作**。
+
+解决办法：利用事务，解决这个问题：
+
+```java
+    public Map<String,Integer> getCountsFaster(String term) {
+        //将set集合转换为list,以便每次都有相同的遍历顺序
+        List<String> urls = new ArrayList<String>();
+        urls.addAll(getUrls(term));
+
+        // 创建一个事务执行所有查询
+        Transaction t = jedis.multi();
+        for (String url: urls) {
+            String redisKey = urlSetKey(url);
+            t.hget(redisKey,term);
+        }
+        List<Object> res = t.exec();
+
+        //遍历结果，制造出map
+        Map<String,Integer> map = new HashMap<String, Integer>();
+        int i=0;
+        for (String url: urls) {
+            System.out.println(url);
+            Integer count = new Integer((String)res.get(i++));
+            map.put(url,count);
+        }
+        return map;
+    }
+```
+
+
+
+###### 3.索引的分析
+
+使用我们设计的数据结构，页面的索引需要多长时间？再次考虑你的答案，然后再继续。
+
+为了索引页面，我们遍历其 DOM 树，找到所有`TextNode`对象，并将字符串拆分成检索词。这一切都与页面上的单词数成**正比**。
+
+对于每个检索词，我们在`HashMap`中增加一个计数器，这是一个常数时间的操作。所以创建`TermCounter`的所需时间与页面上的单词数成正比。
+
+将`TermCounter`推送到 Redis ，需要删除`TermCounter`，对于唯一检索词的数量是线性的。那么对于每个检索词，我们必须：
+
+- 向`URLSet`添加元素，并且
+- 向 Redis`TermCounter`添加元素。
+
+这两个都是常数时间的操作，所以推送`TermCounter`的总时间对于唯一检索词的数量是线性的。
+
+总之，`TermCounter`的创建与页面上的单词数成正比。向 Redis 推送`TermCounter`与唯一检索词的数量成正比。
+
+由于页面上的单词数量通常超过唯一检索词的数量，因此整体复杂度与页面上的单词数成正比。理论上，一个页面可能包含索引中的所有检索词，因此最坏的情况是`O(M)`，但实际上我们并不期待看到更糟糕的情况。
+
+这个分析提出了一种提高效率的方法：我们应该避免索引很常见的词语。首先，他们占用了大量的时间和空间，因为它们出现在几乎每一个`URLSet`和`TermCounter`中。此外，它们不是很有用，因为它们不能帮助识别相关页面。
+
+大多数搜索引擎避免索引常用单词，这在本文中称为停止词（<http://thinkdast.com/stopword>）。

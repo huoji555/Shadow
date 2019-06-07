@@ -24,7 +24,7 @@ public class WikiFetcher {
      **/
     public Elements fetchWikiPedia(String url) throws IOException {
         sleepIfNeed();
-        Connection connection = Jsoup.connect(url);
+        Connection connection = Jsoup.connect(url).ignoreContentType(true);
         Document doc = connection.get();
         // Element content = doc.getElementById("mw-content-text");
        // System.out.println(content);

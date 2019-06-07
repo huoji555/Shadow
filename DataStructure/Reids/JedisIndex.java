@@ -7,6 +7,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Transaction;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 
 public class JedisIndex {
@@ -80,7 +81,7 @@ public class JedisIndex {
         Set<String> urls = getUrls(term);
 
         for (String url: urls) {
-            Integer count = getCount(url,term);
+            Integer count = getTermCount(url,term);
             map.put(url,count);
         }
         return map;
@@ -91,10 +92,27 @@ public class JedisIndex {
      * @Description 返回搜索项在url中出现的次数
      * @Date 22:12 2019/5/14
      **/
-    public Integer getCount(String url,String term) {
+    public Integer getTermCount(String url,String term) {
         String redisKey = urlSetKey(url);
         String count = jedis.hget(redisKey,term);
         return new Integer(count);
+    }
+
+
+    /**
+     * @Author Ragty
+     * @Description 获取url中的词汇总数
+     * @Date 11:18 2019/6/4
+     **/
+    public Integer getWordCount(String url) {
+        String redisKey = urlSetKey(url);
+        Map<String,String> map = jedis.hgetAll(redisKey);
+        Integer count = 0;
+
+        for(Map.Entry<String, String> entry: map.entrySet()) {
+            count += Integer.valueOf(entry.getValue());
+        }
+        return count;
     }
 
 
@@ -176,7 +194,7 @@ public class JedisIndex {
 
            Set<String> urls = getUrls(term);
            for (String url: urls) {
-               Integer count = getCount(url,term);
+               Integer count = getTermCount(url,term);
                System.out.println("   "+url+ " "+count);
            }
        }
@@ -285,6 +303,75 @@ public class JedisIndex {
     }
 
 
+
+    /**
+     * @Author Ragty
+     * @Description 获取搜索词的词频(Term Frequency)
+     * @Date 11:25 2019/6/4
+     **/
+    public BigDecimal getTermFrequency(String url,String term) {
+        if (!isIndexed(url)) {
+            System.out.println("Doesn't indexed.");
+            return null;
+        }
+
+        Integer documentCount = getWordCount(url);
+        Integer termCount = getTermCount(url,term);
+        return documentCount==0 ? new BigDecimal(0) :  new BigDecimal(termCount).divide(new BigDecimal(documentCount),6,BigDecimal.ROUND_HALF_UP);
+    }
+
+
+    /**
+     * @Author Ragty
+     * @Description 获取redis索引文章的总数
+     * @Date 19:46 2019/6/5
+     **/
+    public Integer getUrlCount() {
+        Integer count = 0;
+        count = urlSetKeys().size();
+        return count;
+    }
+
+
+    /**
+     * @Author Ragty
+     * @Description 获取含有搜索词的文章数
+     * @Date 22:42 2019/6/5
+     **/
+    public Integer getUrlTermCount(String term) {
+        Integer count = 0;
+        count = getUrls(term).size();
+        return count;
+    }
+
+
+    /**
+     * @Author Ragty
+     * @Description 计算逆文档频率IDF(InverseDocumnetFrequency)
+     * @Date 23:32 2019/6/5
+     **/
+    public BigDecimal getInverseDocumentFrequency(String term) {
+        Integer totalUrl = getUrlCount();
+        Integer urlTermCount = getUrlTermCount(term);
+        Double xx = new BigDecimal(totalUrl).divide(new BigDecimal(urlTermCount),6,BigDecimal.ROUND_HALF_UP).doubleValue();
+        BigDecimal idf = new BigDecimal(Math.log10(xx));
+        return idf;
+    }
+
+
+    /**
+     * @Author Ragty
+     * @Description 获取tf-idf值
+     * @Date 23:34 2019/6/5
+     **/
+    public BigDecimal getTFIDF(String url,String term) {
+        BigDecimal tf = getTermFrequency(url, term);
+        BigDecimal idf = getInverseDocumentFrequency(term);
+        BigDecimal tfidf  =tf.multiply(idf);
+        return tfidf;
+    }
+
+
     public static void main(String[] args) throws IOException{
 
         Jedis jedis = JedisMaker.make();
@@ -293,12 +380,19 @@ public class JedisIndex {
         //index.deleteAllKeys();
         //loadIndex(index);
 
-        Map<String,Integer> map = index.getCountsFaster("c语言");
+       /* Map<String,Integer> map = index.getCountsFaster("c语言");
         for (Map.Entry<String, Integer> entry: map.entrySet()) {
             System.out.println(entry);
-        }
+        }*/
 
-        System.out.println(index.getUrls("java"));
+       // System.out.println(index.getUrls("java"));
+
+        System.out.println(index.getWordCount("https://baike.baidu.com/item/javascript"));
+        System.out.println(index.getTermFrequency("https://baike.baidu.com/item/javascript","4"));
+        System.out.println(index.getUrlCount());
+        System.out.println(index.getUrlTermCount("4"));
+        System.out.println(index.getInverseDocumentFrequency("4"));
+        System.out.println(index.getTFIDF("https://baike.baidu.com/item/javascript","4"));
 
     }
 

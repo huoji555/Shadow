@@ -14,7 +14,7 @@ public class WikiPhilosophy {
 
     public static void main(String[] args) throws IOException{
         String destination = "https://en.wikipedia.org/wiki/Philosophy";     // 哲学界面
-        String source = "https://en.wikipedia.org/wiki/Java_(programming_language)";
+        String source = "https://en.wikipedia.org/wiki/Python";
         testConjecture(destination,source,10);
     }
 

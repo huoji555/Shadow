@@ -3196,3 +3196,10 @@ https://baike.baidu.com/item/%E8%84%9A%E6%9C%AC%E8%AF%AD%E8%A8%80         3
 >去掉网络**中止词**后，显示一个词在文本中所出现的频率，频率越高，则说明该搜索词与文章的相关性越大。
 >
 >后期可用`TF-IDF`算法优化
+
+[Github代码源码实现](https://github.com/huoji555/Shadow/tree/master/DataStructure/SearchEngine)
+
+[TF-IDF原理介绍](<https://blog.csdn.net/huoji555/article/details/90732576>)
+
+
+

@@ -3203,3 +3203,399 @@ https://baike.baidu.com/item/%E8%84%9A%E6%9C%AC%E8%AF%AD%E8%A8%80         3
 
 
 
+
+
+### 第十八章 排序算法
+
+
+
+###### 1.插入排序
+
+> 插入排序是一种简单的排序算法，从头遍历数组，依此比较排序
+
+代码实现：
+
+```java
+	public void insertionSort(List<T> list, Comparator<T> comparator) {
+        for (int i=1; i<list.size(); i++) {
+            T elt_i = list.get(i);
+            int j = i;
+
+            while (j>0) {
+                T elt_j = list.get(j-1);
+                if (comparator.compare(elt_i,elt_j)>=0) {
+                    break;
+                }
+                list.set(j,elt_j);
+                j--;
+            }
+            list.set(j,elt_i);
+        }
+    }
+```
+
+测试：
+
+```java
+ 		List<Integer> list = new ArrayList<Integer>(Arrays.asList(3, 5, 1, 4, 2));
+
+        Comparator<Integer> comparator = new Comparator<Integer>() {
+            @Override
+            public int compare(Integer elt1, Integer elt2) {
+                return elt1.compareTo(elt2);
+            }
+        };
+
+        ListSorter<Integer> sorter = new ListSorter<Integer>();
+        sorter.insertionSort(list, comparator);
+        System.out.println(list);
+```
+
+`insertionSort`有两个嵌套循环，所以你可能会猜到，它的运行时间是二次的。在这种情况下，一般是正确的，但你做出这个结论之前，你必须检查，每个循环的运行次数与`n`，数组的大小成正比。
+
+外部循环从`1`迭代到`list.size()`，因此对于列表的大小`n`是线性的。内循环从`i`迭代到`0`，所以在`n`中也是线性的。因此，两个循环运行的总次数是二次的。
+
+如果你不确定，这里是证明：
+
+第一次循环中，`i = 1`，内循环最多运行一次。 第二次，`i = 2`，内循环最多运行两次。 最后一次，`i = n - 1`，内循环最多运行`n`次。
+
+因此，内循环运行的总次数是序列`1, 2, ..., n - 1`的和，即`n(n - 1)/2`。该表达式的主项（拥有最高指数）为`n^2`。
+
+在最坏的情况下，插入排序是二次的。然而：
+
+- 如果这些元素已经有序，或者几乎这样，插入排序是线性的。具体来说，如果每个元素距离它的有序位置不超过`k`个元素，则内部循环不会运行超过`k`次，并且总运行时间是`O(kn)`。
+- 由于实现简单，开销较低；也就是，尽管运行时间是`an^2`，主项的系数`a`，也可能是小的。
+
+所以如果我们知道数组几乎是有序的，或者不是很大，插入排序可能是一个不错的选择。
+
+
+
+###### 2.归并排序
+
+>归并操作(merge)，也叫归并算法，指的是将两个顺序序列合并成一个顺序序列的方法。
+>
+>如　设有数列{6，202，100，301，38，8，1}
+>
+>初始状态：6,202,100,301,38,8,1
+>
+>第一次归并后：{6,202},{100,301},{8,38},{1}，比较次数：3；
+>
+>第二次归并后：{6,100,202,301}，{1,8,38}，比较次数：4；
+>
+>第三次归并后：{1,6,8,38,100,202,301},比较次数：4；
+>
+>总的比较次数为：3+4+4=11；逆序数为14；
+
+![](https://images2015.cnblogs.com/blog/1023577/201610/1023577-20161011232321687-190186195.png)
+
+
+
+###### 3.归并排序分析
+
+为了对归并排序的运行时间进行划分，对递归层级和每个层级上完成多少工作方面进行思考，是很有帮助的。假设我们从包含`n`个元素的列表开始。以下是算法的步骤：
+
+- 生成两个新数组，并将一半元素复制到每个数组中。
+- 排序两个数组。
+- 合并两个数组。
+
+流程图如下：
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/17-1.jpg)
+
+第一步复制每个元素一次，因此它是线性的。第三步也复制每个元素一次，因此它也是线性的。现在我们需要弄清楚步骤`2`的复杂性。为了做到这一点，查看不同的计算图片会有帮助，它展示了递归的层数，如下图所示。
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/17-2.jpg)
+
+> 上图为**归并排序的展示**，它展示了递归的所有层级。
+
+在顶层，我们有`1`个列表，其中包含`n`个元素。为了简单起见，我们假设`n`是`2`的幂。在下一层，有`2`个列表包含`n/2`个元素。然后是`4`个列表与`n/4`元素，以此类推，直到我们得到`n`个列表与`1`元素。
+
+在每一层，我们共有`n`个元素。在下降的过程中，我们必须将数组分成两半，这在每一层上都需要与`n`成正比的时间。在回来的路上，我们必须合并`n`个元素，这也是线性的。
+
+如果层数为`h`，算法的总工作量为`O(nh)`。那么有多少层呢？有两种方法可以考虑：
+
+- 我们用多少步，可以将`n`减半直到`1`？
+- 或者，我们用多少步，可以将`1`加倍直到`n`？
+
+第二个问题的另一种形式是“`2`的多少次方是`n`”？
+
+```
+2^h = n
+```
+
+对两边取以`2`为底的对数：
+
+```
+h = log2(n)
+```
+
+所以总时间是`O(nlogn)`。我没有纠结于对数的底，因为底不同的对数差别在于一个常数，所以所有的对数都是相同的增长级别。
+
+`O(nlogn)`中的算法有时被称为“线性对数”的，但大多数人只是说`n log n`。
+
+事实证明，`O(nlogn)`是通过元素比较的排序算法的理论下限。这意味着没有任何“比较排序”的增长级别比`n log n`好。
+
+
+
+###### 4.归并排序实现
+
+实现代码：
+
+```java
+ /**
+     * @Author Ragty
+     * @Description 归并排序
+     * @Date 10:02 2019/6/12
+     **/
+    public void mergeSortInplace(List<T> list,Comparator<T> comparator) {
+        List<T> sorted = mergeSort(list,comparator);
+        list.clear();
+        list.addAll(sorted);
+    }
+
+
+
+    /**
+     * @Author Ragty
+     * @Description 分割list并排序
+     * @Date 10:10 2019/6/12
+     **/
+    public List<T> mergeSort(List<T> list,Comparator<T> comparator) {
+        int size = list.size();
+        if (size <= 1) {
+            return  list;
+        }
+        //每次让list中的元素减半(递归)
+        List<T> first = mergeSort(new LinkedList<T>(list.subList(0,size/2)),comparator);
+        List<T> second = mergeSort(new LinkedList<T>(list.subList(size/2,size)),comparator);
+
+        return merge(first,second,comparator);
+    }
+
+
+    /**
+     * @Author Ragty
+     * @Description 将两个排序好的list,合并为一个排序好的List(常数时间)
+     * @Date 10:19 2019/6/12
+     **/
+    private List<T> merge(List<T> first,List<T> second, Comparator<T> comparator) {
+        List<T> result = new LinkedList<T>();
+        int total = first.size()+second.size();
+
+        for(int i=0; i<total; i++) {
+            List<T> winner = pickWinner(first,second,comparator);
+            result.add(winner.remove(0));
+        }
+        return result;
+    }
+
+
+
+    /**
+     * @Author Ragty
+     * @Description 返回第一个元素较小的list,任意列表为空，返回另一个list
+     * @Date 10:52 2019/6/12
+     **/
+    private List<T> pickWinner(List<T> first,List<T> second,Comparator<T> comparator) {
+        if (first.size() == 0) {
+            return second;
+        }
+        if (second.size() == 0) {
+            return first;
+        }
+        int res = comparator.compare(first.get(0),second.get(0));
+        if (res < 0) {
+            return first;
+        }
+        if (res > 0) {
+            return second;
+        }
+        return  first;
+    }
+```
+
+测试代码：
+
+```java
+list = new ArrayList<Integer>(Arrays.asList(3, 5, 1, 4, 2));
+sorter.mergeSortInplace(list, comparator);
+System.out.println(list);
+```
+
+测试结果：
+
+```java
+[1, 2, 3, 4, 5]
+```
+
+
+
+###### 5.基数排序
+
+`基数排序`是一种**非比较排序算法**，如果元素的大小是**有界**的，例如 32 位整数或 20 个字符的字符串，它就可以工作。
+
+为了看看它是如何工作的，想象你有一堆索引卡，每张卡片包含三个字母的单词。以下是一个方法，可以对卡进行排序：
+
+- 根据第一个字母，将卡片放入桶中。所以以`a`开头的单词应该在一个桶中，其次是以`b`开头的单词，以此类推
+- 根据第二个字母再次将卡片放入每个桶。所以以`aa`开头的应该在一起，其次是以`ab`开头的，以此类推当然，并不是所有的桶都是满的，但是没关系。
+- 根据第三个字母再次将卡片放入每个桶。
+
+此时，每个桶包含一个元素，桶按升序排列。下图展示了三个字母的例子。
+
+![](https://wizardforcel.gitbooks.io/think-dast/content/img/17-3.jpg)
+
+最上面那行显示未排序的单词。第二行显示第一次遍历后的桶的样子。每个桶中的单词都以相同的字母开头。
+
+第二遍之后，每个桶中的单词以相同的两个字母开头。在第三遍之后，每个桶中只能有一个单词，并且桶是有序的。
+
+在每次遍历期间，我们遍历元素并将它们添加到桶中。只要桶允许在恒定时间内添加元素，每次遍历是线性的。
+
+遍历数量，我会称之为`w`，取决于单词的“宽度”，但不取决于单词的数量，`n`。所以增长级别是`O(wn)`，对于`n`是线性的。
+
+
+
+###### 6.堆排序
+
+基数排序适用于大小有界的东西，除了他之外，还有一种你可能遇到的其它专用排序算法：有界堆排序。如果你在处理非常大的数据集，你想要得到前 10 个或者前`k`个元素，其中`k`远小于`n`，它是很有用的。
+
+例如，假设你正在监视一 个Web 服务，它每天处理十亿次事务。在每一天结束时，你要汇报最大的`k`个事务（或最慢的，或者其它最 xx 的）。一个选项是存储所有事务，在一天结束时对它们进行排序，然后选择最大的`k`个。需要的时间与`nlogn`成正比，这非常慢，因为我们可能无法将十亿次交易记录在单个程序的内存中。我们必须使用“外部”排序算法。
+
+我们首先了解一下堆，这是一个类似于二叉搜索树（BST）的数据结构。有一些区别：
+
+- 在 BST 中，每个节点`x`都有“BST 特性”：`x`左子树中的所有节点都小于`x`，右子树中的所有节点都大于`x`。
+- 在堆中，每个节点`x`都有“堆特性”：两个子树中的所有节点都大于`x`。
+- 堆就像平衡的 BST；当你添加或删除元素时，他们会做一些额外的工作来重新使树平衡。因此，可以使用元素的数组来有效地实现它们。
+
+> 现在讨论的是小根堆。如果子树中的节点都小于根节点，则为大根堆。
+
+堆中最小的元素总是在根节点，所以我们可以在常数时间内找到它。在堆中添加和删除元素需要的时间与树的高度`h`成正比。而且由于堆总是平衡的，所以`h`与`log n`成正比。
+
+Java`PriorityQueue`使用堆实现。`PriorityQueue`提供`Queue`接口中指定的方法，包括`offer`和`poll`：
+
+- `offer`：将一个元素添加到队列中，更新堆，使每个节点都具有“堆特性”。需要`logn`的时间。
+- `poll`：从根节点中删除队列中的最小元素，并更新堆。需要`logn`的时间。
+
+给定一个`PriorityQueue`，你可以像这样轻松地排序的`n`个元素的集合 ：
+
+- 使用`offer`，将集合的所有元素添加到`PriorityQueue`。
+- 使用`poll`从队列中删除元素并将其添加到`List`。
+
+因为`poll`返回队列中剩余的最小元素，所以元素按升序添加到`List`。这种排序方式称为堆排序 。
+
+向队列中添加`n`个元素需要`nlogn`的时间。删除`n`个元素也是如此。所以堆排序的运行时间是`O(n logn)`。
+
+代码实现：
+
+```java
+	/**
+     * @Author Ragty
+     * @Description 堆排序
+     * @Date 19:15 2019/6/12
+     **/
+    public void heapSort(List<T> list,Comparator<T> comparator) {
+        PriorityQueue<T> heap = new PriorityQueue<T>(list.size(),comparator);
+        heap.addAll(list);
+        list.clear();
+        while(!heap.isEmpty()) {
+            list.add(heap.poll());
+        }
+    }
+```
+
+测试代码：
+
+```java
+list = new ArrayList<Integer>(Arrays.asList(3, 5, 1, 4, 2));
+sorter.heapSort(list, comparator);
+System.out.println(list);
+```
+
+
+
+###### 7.有界堆排序
+
+有界堆是一个限制为最多包含`k`个元素的堆。如果你有`n`个元素，你可以跟踪这个最大的`k`个元素：
+
+最初堆是空的。对于每个元素`x`：
+
+- 分支 1：如果堆不满，请添加`x`到堆中。
+- 分支 2：如果堆满了，请与堆中`x`的最小元素进行比较。如果`x`较小，它不能是最大的`k`个元素之一，所以你可以丢弃它。
+- 分支 3：如果堆满了，并且`x`大于堆中的最小元素，请从堆中删除最小的元素并添加`x`。
+
+使用顶部为最小元素的堆，我们可以跟踪最大的`k`个元素。我们来分析这个算法的性能。对于每个元素，我们执行以下操作之一：
+
+- 分支 1：将元素添加到堆是`O(log k)`。
+- 分支 2：找到堆中最小的元素是`O(1)`。
+- 分支 3：删除最小元素是`O(log k)`。添加`x`也是`O(log k)`。
+
+在最坏的情况下，如果元素按升序出现，我们总是执行分支 3。在这种情况下，处理`n`个元素的总时间是`O(n log k)`，对于`n`是线性的。
+
+代码实现：
+
+```java
+	/**
+     * @Author Ragty
+     * @Description 有界堆排序
+     * @Date 19:49 2019/6/12
+     **/
+    public List<T> topK(int k,List<T> list,Comparator<T> comparator) {
+        PriorityQueue<T> heap = new PriorityQueue<T>(list.size(),comparator);
+        for (T element : list) {
+            if (heap.size() < k) {
+                heap.offer(element);
+                continue;
+            }
+            int cmp = comparator.compare(element,heap.peek());
+            if (cmp>0) {
+                heap.poll();
+                heap.offer(element);
+            }
+        }
+        List<T> res = new LinkedList<T>();
+        while (!heap.isEmpty()) {
+            res.add(heap.poll());
+        }
+        return res;
+    }
+```
+
+测试代码：
+
+```java
+list = new ArrayList<Integer>(Arrays.asList(6, 3, 5, 8, 1, 4, 2, 7));
+List<Integer> queue = sorter.topK(4, list, comparator);
+System.out.println(queue);
+```
+
+
+
+###### 8.空间复杂性
+
+到目前为止，我们已经谈到了很多运行时间的分析，但是对于许多算法，我们也关心空间。例如，归并排序的一个缺点是它会复制数据。在我们的实现中，它分配的空间总量是`O(n log n)`。通过优化，可以将空间降至`O(n)`。
+
+相比之下，插入排序不会复制数据，因为它会原地排序元素。它使用临时变量来一次性比较两个元素，并使用一些其它局部变量。但它的空间使用不取决于`n`。
+
+我们的堆排序实现创建了新`PriorityQueue`，来存储元素，所以空间是`O(n)`; 但是如果你能够原地对列表排序，则可以使用`O(1)`的空间执行堆排序 。
+
+刚刚实现的有界堆栈算法的一个好处是，它只需要与`k`成正比的空间（我们要保留的元素的数量），而`k`通常比`n`小得多 。
+
+软件开发人员往往比空间更加注重运行时间，对于许多应用程序来说，这是适当的。但是对于大型数据集，空间可能同等或更加重要。例如：
+
+- 如果一个数据集不能放入一个程序的内存，那么运行时间通常会大大增加，或者根本不能运行。如果你选择一个需要较少空间的算法，并且这样可以将计算放入内存中，则可能会运行得更快。同样，使用较少空间的程序，可能会更好地利用 CPU 缓存并运行速度更快。
+- 在同时运行多个程序的服务器上，如果可以减少每个程序所需的空间，则可以在同一台服务器上运行更多程序，从而降低硬件和能源成本。
+
+
+
+
+
+#### 后记
+
+第一次接触到数据结构是大二的时候，那时候只觉得做些网站，搞点新奇的东西出来，就能满足那个时候的好奇心，没办法沉下心好好研究这些东西，等到实习后，才越来越觉得洗净铅华之后，哪些东西才是最重要的，最根本的。我只是很浅显的将书读了几次，并基于书内的练习做了一些对于我很新奇的事情。
+
+我在做这件事的时候就明白，这些东西是很难看到直接利益的，但我仍愿意去做这些看起来"无用的事情"，我觉得阅读它时，能看到别人的思路，也可以自己思考能利用这些做些什么有趣的事，世界上最有趣的事就是安静的做自己喜欢的事情，完全能沉浸在当时的环境中，不管周围喧嚣或是平静，只能感觉到一种新事物通过自己的双手和脑袋在磅礴而出。
+
+写这个的时候，大概是今年四月初，不忙的时候就抽空写这个，后来事情比较多，在五月初停顿了一段时间，我觉得记下这些对我来说很有意义，即使再次看文章的还是我自己。
+
+没想到最后一部分是在火车上完成的，算是行走中的Coding吧。现在窗外变黑了，城市的灯很亮，忽然有点想念前几天在银川看到的星星跟天空，我觉得夜晚的天空就该是深蓝或墨紫的，像傍晚深处的海。
+
+ 车停了，这次也就到此为止了。

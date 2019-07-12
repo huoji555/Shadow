@@ -1,6 +1,8 @@
 package JavaPdf;
 
 import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 import org.apache.pdfbox.util.PDFMergerUtility;
 
@@ -36,16 +38,16 @@ public class PdfUtil {
 
             pdfPath = descfolder +"/"+System.currentTimeMillis()+".pdf";
             String type = imagePath.substring(imagePath.lastIndexOf(".")+1);
-            System.out.println(type);
             Document doc = new Document(null, 0, 0, 0, 0);
 
             //更换图片图层
             BufferedImage bufferedImage = new BufferedImage(img.getWidth(), img.getHeight(),BufferedImage.TYPE_3BYTE_BGR);
-            bufferedImage.getGraphics().drawImage(img, 0,0, img.getWidth(), img.getWidth(), null);
+            bufferedImage.getGraphics().drawImage(img, 0,0, img.getWidth(), img.getHeight(), null);
             bufferedImage=new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY),null).filter (bufferedImage,null);
 
             //图片流处理
-            doc.setPageSize(new Rectangle(img.getWidth(), img.getHeight()));
+            doc.setPageSize(new Rectangle(bufferedImage.getWidth(), bufferedImage.getHeight()));
+            System.out.println(bufferedImage.getWidth()+"()()()()()"+bufferedImage.getHeight());
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             boolean flag = ImageIO.write(bufferedImage, type, out);
             byte[] b = out.toByteArray();

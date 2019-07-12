@@ -5,6 +5,8 @@ import net.coobird.thumbnailator.Thumbnails;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.ConvolveOp;
+import java.awt.image.Kernel;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -32,31 +34,16 @@ public class ImgUtil {
                     BigDecimal bd = height.divide(width,4,BigDecimal.ROUND_CEILING);
                     BigDecimal theValue = BigDecimal.valueOf(1.1700);
 
-                    System.out.println(width+"&&&&&&"+height);
-                    System.out.println(bd);
-
-                    BigDecimal standaraHeight = BigDecimal.valueOf(842);
-                    BigDecimal standaraWeight = BigDecimal.valueOf(595);
-                    BigDecimal scaleHeight = standaraHeight.divide(height,4,BigDecimal.ROUND_CEILING);
-                    BigDecimal scaleWidth = standaraWeight.divide(width,4,BigDecimal.ROUND_CEILING);
-                    //补偿
-                    BigDecimal realScale = scaleHeight.add(scaleWidth).divide(BigDecimal.valueOf(2),2,BigDecimal.ROUND_CEILING).add(BigDecimal.valueOf(0.27));
-
-
-                    if (height.compareTo(standaraHeight) == 1) { //大于标准高度，缩放
-
-                    }
-
-
-                    System.out.println("调整图片大小 ..." +realScale);
-                    bufferedImage = Thumbnails.of(_img_file_).scale(realScale.floatValue()).asBufferedImage();
-
                     if (bd.compareTo(theValue) == -1 ) {
                         System.out.println("转换中 ...");
-                        bufferedImage = Thumbnails.of(src).rotate(angel).scale(realScale.floatValue()).asBufferedImage();
+                        bufferedImage = Thumbnails.of(src).rotate(angel).scale(1).asBufferedImage();
+                        bufferedImage = calcScale(bufferedImage);
                     }else {
-                        System.out.println("大小合适,跳过 ...");
+                        bufferedImage = calcScale(src);
+                        System.out.println("宽高比合适,跳过 ...");
                     }
+
+                    bufferedImage = getSharperPicture(bufferedImage);
 
                 }
             }
@@ -68,5 +55,34 @@ public class ImgUtil {
     }
 
 
+    /**
+     * @Author Ragty
+     * @Description  计算最佳放缩比
+     * @Date 9:19 2019/3/11
+     * @return
+     **/
+    public BufferedImage calcScale(BufferedImage bufferedImage) throws IOException{
 
+        BigDecimal standaraHeight = BigDecimal.valueOf(842);
+        BigDecimal standaraWeight = BigDecimal.valueOf(595);
+        BigDecimal height = BigDecimal.valueOf(bufferedImage.getHeight());
+        BigDecimal width = BigDecimal.valueOf(bufferedImage.getWidth());
+
+        if (height.compareTo(standaraHeight) == 1 || width.compareTo(standaraWeight) == 1) { //不符合标准，缩放
+            BigDecimal scaleHeight = standaraHeight.divide(height,4,BigDecimal.ROUND_CEILING);
+            BigDecimal scaleWidth = standaraWeight.divide(width,4,BigDecimal.ROUND_CEILING);
+
+            if (scaleHeight.compareTo(BigDecimal.valueOf(1)) == -1) {
+                bufferedImage = Thumbnails.of(bufferedImage).scale(scaleHeight.floatValue()).outputQuality(1.0f).asBufferedImage();
+                calcScale(bufferedImage);
+            }else if (scaleWidth.compareTo(BigDecimal.valueOf(1)) == -1) {
+                bufferedImage = Thumbnails.of(bufferedImage).scale(scaleWidth.floatValue()).outputQuality(1.0f).asBufferedImage();
+                calcScale(bufferedImage);
+            }
+        }
+
+        return  bufferedImage;
     }
+
+
+}

@@ -3,6 +3,7 @@ package HanLP;
 import com.hankcs.hanlp.HanLP;
 import com.hankcs.hanlp.corpus.document.sentence.Sentence;
 import com.hankcs.hanlp.model.crf.CRFLexicalAnalyzer;
+import com.hankcs.hanlp.recognition.ns.PlaceRecognition;
 import com.hankcs.hanlp.seg.Dijkstra.DijkstraSegment;
 import com.hankcs.hanlp.seg.NShort.NShortSegment;
 import com.hankcs.hanlp.seg.Segment;
@@ -129,6 +130,19 @@ public class HanLPTest {
 
 
 
+    /**
+     *  @author: Ragty
+     *  @Date: 2020/1/4 0:48
+     *  @Description: 地名识别(大部分在核心字典里有，默认不开启)
+     */
+    public static List<Term> placeRecognize(String sentence) {
+        Segment segment = HanLP.newSegment().enablePlaceRecognize(true);
+        List<Term> list = segment.seg(sentence);
+        System.out.println(list);
+        return list;
+    }
+
+
 
 
 
@@ -168,6 +182,10 @@ public class HanLPTest {
         System.out.printf("分词速度：%.2f字每秒", text.length() * pressure / costTime);*/
 
        //NameRecognize("签约仪式前，秦光荣、李纪恒、仇和等一同会见了参加签约的企业家。");
+
+       //JapaneseNameRecognize("新垣结衣是我的老婆.");
+
+       //placeRecognize("原平市是一个好地方");
 
     }
 

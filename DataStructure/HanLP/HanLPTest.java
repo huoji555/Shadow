@@ -102,6 +102,21 @@ public class HanLPTest {
 
 
 
+    /**
+     *  @author: Ragty
+     *  @Date: 2020/1/4 0:34
+     *  @Description: 中国人名识别(默认开启，这里这是为了强调，音译人名识别为enableTranslatedNameRecognize)
+     */
+    public static List<Term> NameRecognize(String sentence) {
+        Segment segment = HanLP.newSegment().enableNameRecognize(true);
+        List<Term> list = segment.seg(sentence);
+        System.out.println(list);
+        return list;
+    }
+
+
+
+
 
 
 
@@ -128,7 +143,7 @@ public class HanLPTest {
 
        //speedSegment("江西鄱阳湖干枯，中国最大淡水湖变成大草原");
 
-        String text = "江西鄱阳湖干枯，中国最大淡水湖变成大草原";
+        /*String text = "江西鄱阳湖干枯，中国最大淡水湖变成大草原";
         System.out.println(SpeedTokenizer.segment(text));
         long start = System.currentTimeMillis();
         int pressure = 1000000;
@@ -137,11 +152,9 @@ public class HanLPTest {
             SpeedTokenizer.segment(text);
         }
         double costTime = (System.currentTimeMillis() - start) / (double)1000;
-        System.out.printf("分词速度：%.2f字每秒", text.length() * pressure / costTime);
+        System.out.printf("分词速度：%.2f字每秒", text.length() * pressure / costTime);*/
 
-
-
-
+       //NameRecognize("签约仪式前，秦光荣、李纪恒、仇和等一同会见了参加签约的企业家。");
 
     }
 

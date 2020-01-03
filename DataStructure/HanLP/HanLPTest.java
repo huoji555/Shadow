@@ -4,6 +4,7 @@ import com.hankcs.hanlp.HanLP;
 import com.hankcs.hanlp.corpus.document.sentence.Sentence;
 import com.hankcs.hanlp.model.crf.CRFLexicalAnalyzer;
 import com.hankcs.hanlp.recognition.ns.PlaceRecognition;
+import com.hankcs.hanlp.recognition.nt.OrganizationRecognition;
 import com.hankcs.hanlp.seg.Dijkstra.DijkstraSegment;
 import com.hankcs.hanlp.seg.NShort.NShortSegment;
 import com.hankcs.hanlp.seg.Segment;
@@ -144,6 +145,20 @@ public class HanLPTest {
 
 
 
+    /**
+     *  @author: Ragty
+     *  @Date: 2020/1/4 0:54
+     *  @Description: 机构名识别(默认不开启)
+     */
+    public static List<Term> organizationRecognition(String sentence) {
+        Segment segment = HanLP.newSegment().enableOrganizationRecognize(true);
+        List<Term> list = segment.seg(sentence);
+        System.out.println(list);
+        return list;
+    }
+
+
+
 
 
 
@@ -186,6 +201,13 @@ public class HanLPTest {
        //JapaneseNameRecognize("新垣结衣是我的老婆.");
 
        //placeRecognize("原平市是一个好地方");
+
+       organizationRecognition("电影院是不错的哦");
+
+
+
+
+
 
     }
 

@@ -1,6 +1,7 @@
 package HanLP;
 
 import com.hankcs.hanlp.HanLP;
+import com.hankcs.hanlp.corpus.document.Document;
 import com.hankcs.hanlp.corpus.document.sentence.Sentence;
 import com.hankcs.hanlp.model.crf.CRFLexicalAnalyzer;
 import com.hankcs.hanlp.recognition.ns.PlaceRecognition;
@@ -9,6 +10,7 @@ import com.hankcs.hanlp.seg.Dijkstra.DijkstraSegment;
 import com.hankcs.hanlp.seg.NShort.NShortSegment;
 import com.hankcs.hanlp.seg.Segment;
 import com.hankcs.hanlp.seg.common.Term;
+import com.hankcs.hanlp.suggest.Suggester;
 import com.hankcs.hanlp.tokenizer.IndexTokenizer;
 import com.hankcs.hanlp.tokenizer.NLPTokenizer;
 import com.hankcs.hanlp.tokenizer.SpeedTokenizer;
@@ -175,12 +177,48 @@ public class HanLPTest {
     /**
      *  @author: Ragty
      *  @Date: 2020/1/4 1:08
-     *  @Description: 总结提取(内部用TextRangeSummary实现)
+     *  @Description: 总结提取(内部用TextRangeSummary实现，不准确奥)
      */
     public static  List<String> summaryExtract(String content, Integer size) {
         List<String> list = HanLP.extractSummary(content,size);
         System.out.println(list);
         return list;
+    }
+
+
+
+    /**
+     *  @author: Ragty
+     *  @Date: 2020/1/4 1:16
+     *  @Description: 短语提取
+     */
+    public static List<String> phraseExtract(String content,Integer size) {
+        List<String> list = HanLP.extractPhrase(content,size);
+        System.out.println(list);
+        return list;
+    }
+
+
+
+    /**
+     *  @author: Ragty
+     *  @Date: 2020/1/4 1:34
+     *  @Description: 文本推荐(可用在搜索时提示)
+     */
+    public static void suggestDocumnet(String [] content) {
+        Suggester suggester = new Suggester();
+
+        System.out.println("输入的语句是：");
+        for (String sentence: content) {
+            System.out.println(sentence);
+            suggester.addSentence(sentence);
+        }
+
+        System.out.println();
+        System.out.println("分别进行文本推荐:");
+        System.out.println("按照语义推荐："+"输入'发言'，预测结果为："+suggester.suggest("发言", 1));       // 语义
+        System.out.println("按照字符推荐："+"输入'危机公关'，预测结果为："+suggester.suggest("危机公共", 1));   // 字符
+        System.out.println("按照拼音推荐："+"输入'mayun'，预测结果为："+suggester.suggest("mayun", 1));      // 拼音
     }
 
 
@@ -195,7 +233,7 @@ public class HanLPTest {
         //standardSegment("商品和服务");
 
         //NLPSegment("我新造一个词叫幻想乡你能识别并标注正确词性吗？");
-        //System.out.println(NLPTokenizer.analyze("我的希望是希望张晚霞的背影被晚霞映红").translateLabels());
+        System.out.println(NLPTokenizer.analyze("我的希望是希望张晚霞的背影被晚霞映红").translateLabels());
         //System.out.println(NLPTokenizer.analyze("支援臺灣正體香港繁體：微软公司於1975年由比爾·蓋茲和保羅·艾倫創立。"));
 
         /*List<Term> termList = IndexTokenizer.segment("主副食品");
@@ -235,6 +273,17 @@ public class HanLPTest {
        //String document = "算法可大致分为基本算法、数据结构的算法、数论算法、计算几何的算法、图的算法、动态规划以及数值分析、加密算法、排序算法、检索算法、随机化算法、并行算法、厄米变形模型、随机森林算法。 算法可以宽泛的分为三类，一，有限的确定性算法，这类算法在有限的一段时间内终止。他们可能要花很长时间来执行指定的任务，但仍将在一定的时间内终止。这类算法得出的结果常取决于输入值。 二，有限的非确定算法，这类算法在有限的时间内终止。然而，对于一个（或一些）给定的数值，算法的结果并不是唯一的或确定的。 三，无限的算法，是那些由于没有定义终止定义条件，或定义的条件无法由输入的数据满足而不终止运行的算法。通常，无限算法的产生是由于未能确定的定义终止条件。";
        //summaryExtract(document,3);
 
+       //phraseExtract(document,5);
+
+       String[] titleArray =
+               (
+                       "威廉王子发表演说 呼吁保护野生动物\n" +
+                       "《时代》年度人物最终入围名单出炉 普京马云入选\n" +
+                       "春运火车票已售超3亿张 网友哭上热搜\n" +
+                       "中国游戏用户超6亿近饱和 创新应成产业发展加速器\n" +
+                       "英报告说空气污染带来“公共健康危机”"
+               ).split("\\n");
+       suggestDocumnet(titleArray);
 
     }
 

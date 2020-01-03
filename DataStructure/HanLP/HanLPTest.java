@@ -115,6 +115,19 @@ public class HanLPTest {
     }
 
 
+    /**
+     *  @author: Ragty
+     *  @Date: 2020/1/4 0:44
+     *  @Description: 日本人名识别(因出现频率较低，需手动开启)
+     */
+    public static List<Term> JapaneseNameRecognize(String sentence) {
+        Segment segment = HanLP.newSegment().enableJapaneseNameRecognize(true);
+        List<Term> list = segment.seg(sentence);
+        System.out.println(list);
+        return list;
+    }
+
+
 
 
 

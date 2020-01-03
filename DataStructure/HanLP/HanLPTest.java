@@ -159,6 +159,19 @@ public class HanLPTest {
 
 
 
+    /**
+     *  @author: Ragty
+     *  @Date: 2020/1/4 1:01
+     *  @Description: 关键词提取
+     */
+    public static List<String> keyWordExtract(String content, Integer size) {
+        List<String> list = HanLP.extractKeyword(content,size);
+        System.out.println(list);
+        return list;
+    }
+
+
+
 
 
 
@@ -202,7 +215,9 @@ public class HanLPTest {
 
        //placeRecognize("原平市是一个好地方");
 
-       organizationRecognition("电影院是不错的哦");
+       //organizationRecognition("电影院是不错的哦");
+
+       keyWordExtract("程序员(英文Programmer)是从事程序开发、维护的专业人员。一般将程序员分为程序设计人员和程序编码人员，但两者的界限并不非常清楚，特别是在中国。软件从业人员分为初级程序员、高级程序员、系统分析员和项目经理四大类。",5);
 
 
 
